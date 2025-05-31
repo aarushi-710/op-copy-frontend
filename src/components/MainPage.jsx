@@ -417,10 +417,31 @@ const MainPage = () => {
 
     const handleExport = async () => {
       try {
-        const response = await axios.get(`https://op-copy-backend.onrender.com/api/attendance/${line}/${exportDate}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          responseType: 'blob',
-        });
+        const response = await axios.get(
+          `https://op-copy-backend.onrender.com/api/attendance/${line}/${exportDate}`,
+          {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            responseType: 'blob',
+          }
+        );
+
+        // Check if the response is actually an Excel file
+        const contentType = response.headers['content-type'];
+        if (
+          !contentType ||
+          !contentType.includes(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          )
+        ) {
+          // Try to read the error message
+          const text = await response.data.text();
+          alert(
+            'Failed to export: ' +
+              (text.length < 200 ? text : 'Unknown error from server.')
+          );
+          return;
+        }
+
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const a = document.createElement('a');
         a.href = url;
