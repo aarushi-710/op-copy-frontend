@@ -424,7 +424,7 @@ const MainPage = () => {
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const a = document.createElement('a');
         a.href = url;
-        a.download = `attendance_${line}_${exportDate}.xls`;
+        a.download = `attendance_${line}_${exportDate}.xlsx`; // <-- use .xlsx
         document.body.appendChild(a);
         a.click();
         a.remove();
