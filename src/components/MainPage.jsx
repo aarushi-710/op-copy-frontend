@@ -38,8 +38,8 @@ const MainPage = () => {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [operatorsRes, attendanceRes] = await Promise.all([
-          axios.get(`https://op-backend-d1b9.onrender.com/api/operators/${line}`, { headers }),
-          axios.get(`https://op-backend-d1b9.onrender.com/api/attendance/${line}/${new Date().toISOString().split('T')[0]}`, { headers }),
+          axios.get(`https://op-copy-backend.onrender.com/api/operators/${line}`, { headers }),
+          axios.get(`https://op-copy-backend.onrender.com/api/attendance/${line}/${new Date().toISOString().split('T')[0]}`, { headers }),
         ]);
 
         setOperators(operatorsRes.data || []);
@@ -99,7 +99,7 @@ const MainPage = () => {
         if (process.env.NODE_ENV !== 'production') {
           const formDataToSend = new FormData();
           formDataToSend.append('file', formData.file);
-          const uploadRes = await axios.post('http://localhost:5001/upload', formDataToSend, {
+          const uploadRes = await axios.post('https://op-copy-backend.onrender.com/upload', formDataToSend, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
           finalImagePath = uploadRes.data.imagePath;
@@ -114,7 +114,7 @@ const MainPage = () => {
         };
 
         const res = await axios.post(
-          `https://op-backend-d1b9.onrender.com/api/operators/${line}`,
+          `https://op-copy-backend.onrender.com/api/operators/${line}`,
           operatorData,
           {
             headers: {
@@ -137,7 +137,7 @@ const MainPage = () => {
 
     const handleDeleteOperator = async (id) => {
       try {
-        await axios.delete(`https://op-backend-d1b9.onrender.com/api/operators/${line}/${id}`, {
+        await axios.delete(`https://op-copy-backend.onrender.com/api/operators/${line}/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         setOperators(operators.filter((op) => op._id !== id));
@@ -331,7 +331,7 @@ const MainPage = () => {
             };
             console.log('Sending attendance record:', attendanceRecord);
             try {
-              const response = await axios.post(`https://op-backend-d1b9.onrender.com/api/attendance/${line}`, attendanceRecord, {
+              const response = await axios.post(`https://op-copy-backend.onrender.com/api/attendance/${line}`, attendanceRecord, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
               });
               setAttendance([...attendance, response.data]);
@@ -417,7 +417,7 @@ const MainPage = () => {
 
     const handleExport = async () => {
       try {
-        const response = await axios.get(`https://op-backend-d1b9.onrender.com/api/attendance/${line}/${exportDate}`, {
+        const response = await axios.get(`https://op-copy-backend.onrender.com/api/attendance/${line}/${exportDate}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
           responseType: 'blob',
         });
