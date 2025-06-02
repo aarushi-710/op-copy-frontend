@@ -17,21 +17,37 @@ class MQTTService {
       clientId: `mqttjs_${Math.random().toString(16).substr(2, 8)}`,
       clean: true,
       rejectUnauthorized: false,
+      reconnectPeriod: 1000,
+      connectTimeout: 30 * 1000,
     };
 
-    const connectUrl = `wss://${options.hostname}:${options.port}${options.path}`;
-    
-    this.client = mqtt.connect(connectUrl, options);
+    try {
+      const connectUrl = `wss://${options.hostname}:${options.port}${options.path}`;
+      this.client = mqtt.connect(connectUrl, options);
 
-    this.client.on('connect', () => {
-      console.log('Connected to MQTT broker');
-      this.connected = true;
-    });
+      this.client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        this.connected = true;
+      });
 
-    this.client.on('error', (err) => {
-      console.error('MQTT connection error:', err);
+      this.client.on('error', (err) => {
+        console.error('MQTT connection error:', err);
+        this.connected = false;
+      });
+
+      this.client.on('close', () => {
+        console.log('MQTT connection closed');
+        this.connected = false;
+      });
+
+      this.client.on('offline', () => {
+        console.log('MQTT client offline');
+        this.connected = false;
+      });
+    } catch (error) {
+      console.error('MQTT connection failed:', error);
       this.connected = false;
-    });
+    }
   }
 
   publishLedStatus(line, ledIndex, status) {
