@@ -607,7 +607,7 @@ const MainPage = () => {
 
   const UpdateOperatorsModal = ({ onClose }) => {
     const [showAddForm, setShowAddForm] = useState(false);
-    const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', file: null });
+    const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
     const [preview, setPreview] = useState(null);
 
     const handleFileChange = (e) => {
@@ -621,8 +621,14 @@ const MainPage = () => {
 
     const handleAddOperator = async (e) => {
       e.preventDefault();
-      if (!formData.file || !formData.name || !formData.employeeId || !formData.station) {
-        alert('Please fill all fields and upload an image.');
+      if (!formData.file || !formData.name || !formData.employeeId || !formData.station || formData.ledIndex === '') {
+        alert('Please fill all fields, including LED Index, and upload an image.');
+        return;
+      }
+
+      const ledIndex = parseInt(formData.ledIndex);
+      if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 16) {
+        alert('LED Index must be a number between 0 and 16.');
         return;
       }
 
@@ -647,6 +653,7 @@ const MainPage = () => {
           employeeId: formData.employeeId,
           station: formData.station,
           imagePath: finalImagePath,
+          ledIndex: ledIndex,
         };
 
         const res = await axios.post(
@@ -662,12 +669,13 @@ const MainPage = () => {
 
         setOperators([...operators, res.data]);
         setShowAddForm(false);
-        setFormData({ name: '', employeeId: '', station: '', file: null });
+        setFormData({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
         setPreview(null);
-        alert('Operator added successfully. Please ensure the image is placed in public/images.');
+        alert('Operator added successfully.');
       } catch (error) {
         console.error('Error adding operator:', error);
-        alert(`Error adding operator: ${error.response?.data?.message || error.message}`);
+        const errorMessage = error.response?.data?.message || error.message;
+        alert(`Error adding operator: ${errorMessage}`);
       }
     };
 
@@ -679,7 +687,7 @@ const MainPage = () => {
         setOperators(operators.filter((op) => op._id !== id));
       } catch (error) {
         console.error('Error deleting operator:', error);
-        alert('Error deleting operator.');
+        alert(`Error deleting operator: ${error.response?.data?.message || error.message}`);
       }
     };
 
@@ -696,6 +704,7 @@ const MainPage = () => {
                 <th className="py-2 px-4 border">Name</th>
                 <th className="py-2 px-4 border">Employee ID</th>
                 <th className="py-2 px-4 border">Station</th>
+                <th className="py-2 px-4 border">LED Index</th>
                 <th className="py-2 px-4 border">Actions</th>
               </tr>
             </thead>
@@ -705,6 +714,7 @@ const MainPage = () => {
                   <td className="py-2 px-4">{op.name}</td>
                   <td className="py-2 px-4">{op.employeeId}</td>
                   <td className="py-2 px-4">{op.station}</td>
+                  <td className="py-2 px-4">{op.ledIndex}</td>
                   <td className="py-2 px-4">
                     <button onClick={() => handleDeleteOperator(op._id)} className="text-red-500 hover:underline">
                       Delete
@@ -736,6 +746,15 @@ const MainPage = () => {
                 value={formData.station}
                 onChange={(e) => setFormData({ ...formData, station: e.target.value })}
                 className="border p-2 mb-2 w-full"
+              />
+              <input
+                type="number"
+                placeholder="LED Index (0-16)"
+                value={formData.ledIndex}
+                onChange={(e) => setFormData({ ...formData, ledIndex: e.target.value })}
+                className="border p-2 mb-2 w-full"
+                min="0"
+                max="16"
               />
               <input
                 type="file"
