@@ -62,7 +62,7 @@
 
 //   const UpdateOperatorsModal = ({ onClose }) => {
 //     const [showAddForm, setShowAddForm] = useState(false);
-//     const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', file: null });
+//     const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
 //     const [preview, setPreview] = useState(null);
 
 //     // Handle file selection and preview
@@ -78,8 +78,14 @@
 
 //     const handleAddOperator = async (e) => {
 //       e.preventDefault();
-//       if (!formData.file || !formData.name || !formData.employeeId || !formData.station) {
-//         alert('Please fill all fields and upload an image.');
+//       if (!formData.file || !formData.name || !formData.employeeId || !formData.station || formData.ledIndex === '') {
+//         alert('Please fill all fields, including LED Index, and upload an image.');
+//         return;
+//       }
+
+//       const ledIndex = parseInt(formData.ledIndex, 10);
+//       if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 16) {
+//         alert('LED Index must be a number between 0 and 16.');
 //         return;
 //       }
 
@@ -111,6 +117,7 @@
 //           employeeId: formData.employeeId,
 //           station: formData.station,
 //           imagePath: finalImagePath,
+//           ledIndex: ledIndex,
 //         };
 
 //         const res = await axios.post(
@@ -126,12 +133,13 @@
 
 //         setOperators([...operators, res.data]);
 //         setShowAddForm(false);
-//         setFormData({ name: '', employeeId: '', station: '', file: null });
+//         setFormData({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
 //         setPreview(null);
-//         alert('Operator added successfully. Please ensure the image is placed in public/images.');
+//         alert('Operator added successfully.');
 //       } catch (error) {
 //         console.error('Error adding operator:', error);
-//         alert(`Error adding operator: ${error.response?.data?.message || error.message}`);
+//         const errorMessage = error.response?.data?.message || error.message;
+//         alert(`Error adding operator: ${errorMessage}`);
 //       }
 //     };
 
@@ -143,8 +151,15 @@
 //         setOperators(operators.filter((op) => op._id !== id));
 //       } catch (error) {
 //         console.error('Error deleting operator:', error);
-//         alert('Error deleting operator.');
+//         alert(`Error deleting operator: ${error.response?.data?.message || error.message}`);
 //       }
+//     };
+
+//     // Helper to get available LED indexes (0-16)
+//     const getAvailableLedIndexes = () => {
+//       const assigned = operators.map(op => op.ledIndex);
+//       const allIndexes = Array.from({ length: 17 }, (_, i) => i);
+//       return allIndexes.filter(idx => !assigned.includes(idx));
 //     };
 
 //     return (
@@ -160,6 +175,7 @@
 //                 <th className="py-2 px-4 border">Name</th>
 //                 <th className="py-2 px-4 border">Employee ID</th>
 //                 <th className="py-2 px-4 border">Station</th>
+//                 <th className="py-2 px-4 border">LED Index</th>
 //                 <th className="py-2 px-4 border">Actions</th>
 //               </tr>
 //             </thead>
@@ -169,6 +185,7 @@
 //                   <td className="py-2 px-4">{op.name}</td>
 //                   <td className="py-2 px-4">{op.employeeId}</td>
 //                   <td className="py-2 px-4">{op.station}</td>
+//                   <td className="py-2 px-4">{op.ledIndex}</td>
 //                   <td className="py-2 px-4">
 //                     <button onClick={() => handleDeleteOperator(op._id)} className="text-red-500 hover:underline">
 //                       Delete
@@ -201,6 +218,17 @@
 //                 onChange={(e) => setFormData({ ...formData, station: e.target.value })}
 //                 className="border p-2 mb-2 w-full"
 //               />
+//               <select
+//                 value={formData.ledIndex}
+//                 onChange={(e) => setFormData({ ...formData, ledIndex: e.target.value })}
+//                 className="border p-2 mb-2 w-full"
+//                 required
+//               >
+//                 <option value="">Select LED Index</option>
+//                 {getAvailableLedIndexes().map(idx => (
+//                   <option key={idx} value={idx}>{idx}</option>
+//                 ))}
+//               </select>
 //               <input
 //                 type="file"
 //                 accept="image/*"
@@ -310,8 +338,17 @@
 //           .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
 //           .withFaceLandmarks()
 //           .withFaceDescriptor();
+//         const token = localStorage.getItem('token');
+//         const headers = { Authorization: `Bearer ${token}` };
+//         const currentTimestamp = new Date().toISOString();
+
 //         if (!detection) {
 //           alert('No face detected in webcam feed.');
+//           await axios.post(
+//             `https://op-copy-backend.onrender.com/api/attendance/${line}/fail`,
+//             { station: selectedStation, timestamp: currentTimestamp },
+//             { headers }
+//           );
 //           setIsRecognizing(false);
 //           return;
 //         }
@@ -323,7 +360,6 @@
 //         if (bestMatch.label !== 'unknown' && bestMatch.distance < 0.6) {
 //           const matchedOperator = operators.find((op) => op._id === bestMatch.label);
 //           if (matchedOperator) {
-//             const currentTimestamp = new Date().toISOString();
 //             const attendanceRecord = {
 //               operatorId: matchedOperator._id,
 //               date: today,
@@ -331,9 +367,11 @@
 //             };
 //             console.log('Sending attendance record:', attendanceRecord);
 //             try {
-//               const response = await axios.post(`https://op-copy-backend.onrender.com/api/attendance/${line}`, attendanceRecord, {
-//                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-//               });
+//               const response = await axios.post(
+//                 `https://op-copy-backend.onrender.com/api/attendance/${line}`,
+//                 attendanceRecord,
+//                 { headers }
+//               );
 //               setAttendance([...attendance, response.data]);
 //               alert(`Attendance marked successfully for ${matchedOperator.name} (distance: ${bestMatch.distance.toFixed(3)})`);
 //             } catch (error) {
@@ -345,6 +383,11 @@
 //           }
 //         } else {
 //           alert('No suitable operator found for the detected face (no match >= 60%).');
+//           await axios.post(
+//             `https://op-copy-backend.onrender.com/api/attendance/${line}/fail`,
+//             { station: selectedStation, timestamp: currentTimestamp },
+//             { headers }
+//           );
 //         }
 //       } catch (error) {
 //         console.error('Error during face recognition:', error);
@@ -424,7 +467,7 @@
 //         const url = window.URL.createObjectURL(new Blob([response.data]));
 //         const a = document.createElement('a');
 //         a.href = url;
-//         a.download = `attendance_${line}_${exportDate}.xlsx`; // <-- use .xlsx
+//         a.download = `attendance_${line}_${exportDate}.xlsx`;
 //         document.body.appendChild(a);
 //         a.click();
 //         a.remove();
@@ -610,10 +653,12 @@ const MainPage = () => {
     const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
     const [preview, setPreview] = useState(null);
 
+    // Handle file selection and preview
     const handleFileChange = (e) => {
       const file = e.target.files[0];
       if (file) {
         setFormData({ ...formData, file });
+        // Generate a preview URL for the image
         const previewUrl = URL.createObjectURL(file);
         setPreview(previewUrl);
       }
@@ -626,18 +671,24 @@ const MainPage = () => {
         return;
       }
 
-      const ledIndex = parseInt(formData.ledIndex);
+      const ledIndex = parseInt(formData.ledIndex, 10);
       if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 16) {
         alert('LED Index must be a number between 0 and 16.');
         return;
       }
 
       try {
+        // Create a unique filename
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         const fileExtension = formData.file.name.split('.').pop();
         const fileName = `operator-${uniqueSuffix}.${fileExtension}`;
-        const imagePath = `/images/${fileName}`;
+        const imagePath = `/images/${fileName}`; // Path relative to public folder
 
+        // Note: In a browser, you cannot directly save to public/images.
+        // For development, manually place the file in frontend/public/images or use a dev server.
+        // For deployment, images must be committed to GitHub and served by Vercel.
+
+        // Optionally, upload to a local dev server (if set up)
         let finalImagePath = imagePath;
         if (process.env.NODE_ENV !== 'production') {
           const formDataToSend = new FormData();
@@ -648,6 +699,7 @@ const MainPage = () => {
           finalImagePath = uploadRes.data.imagePath;
         }
 
+        // Send operator data to backend
         const operatorData = {
           name: formData.name,
           employeeId: formData.employeeId,
@@ -689,6 +741,13 @@ const MainPage = () => {
         console.error('Error deleting operator:', error);
         alert(`Error deleting operator: ${error.response?.data?.message || error.message}`);
       }
+    };
+
+    // Helper to get available LED indexes (0-16)
+    const getAvailableLedIndexes = () => {
+      const assigned = operators.map(op => op.ledIndex);
+      const allIndexes = Array.from({ length: 17 }, (_, i) => i);
+      return allIndexes.filter(idx => !assigned.includes(idx));
     };
 
     return (
@@ -747,15 +806,17 @@ const MainPage = () => {
                 onChange={(e) => setFormData({ ...formData, station: e.target.value })}
                 className="border p-2 mb-2 w-full"
               />
-              <input
-                type="number"
-                placeholder="LED Index (0-16)"
+              <select
                 value={formData.ledIndex}
                 onChange={(e) => setFormData({ ...formData, ledIndex: e.target.value })}
                 className="border p-2 mb-2 w-full"
-                min="0"
-                max="16"
-              />
+                required
+              >
+                <option value="">Select LED Index</option>
+                {getAvailableLedIndexes().map(idx => (
+                  <option key={idx} value={idx}>{idx}</option>
+                ))}
+              </select>
               <input
                 type="file"
                 accept="image/*"
@@ -814,6 +875,7 @@ const MainPage = () => {
         const descriptors = await Promise.all(
           stationOperators.map(async (op) => {
             try {
+              // Use the frontend's base URL for deployed images
               const baseUrl = process.env.REACT_APP_FRONTEND_URL || '';
               const imageUrl = `${baseUrl}${op.imagePath}`;
               console.log(`Fetching image for operator ${op.name}: ${imageUrl}`);
