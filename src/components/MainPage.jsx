@@ -5,6 +5,7 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
+import { mqttService } from '../services/mqttService';
 
 // Global error handling for uncaught promise errors
 window.addEventListener('unhandledrejection', function(event) {
@@ -413,9 +414,26 @@ const MainPage = () => {
       };
     }, [showMarkModal]);
 
-    const handleMarkAttendance = () => {
+    const handleMarkAttendance = async () => {
       setIsRecognizing(true);
-      recognizeFace();
+      try {
+        await recognizeFace();
+
+        // After successful attendance marking
+        mqttService.publishAttendanceChange({
+          operatorName: formattedAttendance.operatorName,
+          employeeId: formattedAttendance.employeeId,
+          station: formattedAttendance.station,
+          status: formattedAttendance.status,
+          timestamp: formattedAttendance.timestamp
+        });
+
+      } catch (error) {
+        console.error('Error marking attendance:', error);
+        alert('Error marking attendance');
+      } finally {
+        setIsRecognizing(false);
+      }
     };
 
     return (
@@ -528,6 +546,11 @@ const MainPage = () => {
       }),
     };
   };
+
+  useEffect(() => {
+    mqttService.connect();
+    return () => mqttService.disconnect();
+  }, []);
 
   return (
     <div className="p-4">
