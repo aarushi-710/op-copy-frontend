@@ -85,8 +85,8 @@ const MainPage = () => {
       }
 
       const ledIndex = parseInt(formData.ledIndex, 10);
-      if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 16) {
-        alert('LED Index must be a number between 0 and 16.');
+      if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 20) {
+        alert('LED Index must be a number between 0 and 20.');
         return;
       }
 
