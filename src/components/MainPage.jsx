@@ -281,45 +281,68 @@ const MainPage = () => {
       if (!selectedStation || !modelsLoaded) return;
 
       const loadDescriptors = async () => {
-        const stationOperators = operators.filter((op) => op.station === selectedStation);
-        if (stationOperators.length === 0) {
-          setLabeledDescriptors([]);
-          return;
-        }
+        try {
+          const stationOperators = operators.filter((op) => op.station === selectedStation);
+          if (stationOperators.length === 0) {
+            console.log('No operators found for station:', selectedStation);
+            setLabeledDescriptors([]);
+            return;
+          }
 
-        const descriptors = await Promise.all(
-          stationOperators.map(async (op) => {
-            try {
-              // Use absolute URL for images
-              const imageUrl = `${window.location.origin}${op.imagePath}`;
-              // Add error handling for image loading
-              const response = await fetch(imageUrl);
-              if (!response.ok) {
-                throw new Error(`Failed to load image: ${response.statusText}`);
-              }
-              
-              const img = await faceapi.fetchImage(imageUrl);
-              const detection = await faceapi
-                .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                .withFaceLandmarks()
-                .withFaceDescriptor();
-                
-              if (!detection) {
-                console.warn(`No face detected in image for operator ${op.name}`);
+          console.log('Loading descriptors for operators:', stationOperators.map(op => op.name));
+
+          const descriptors = await Promise.all(
+            stationOperators.map(async (op) => {
+              try {
+                // Use backend URL for images instead of frontend
+                const imageUrl = `https://op-copy-backend.onrender.com${op.imagePath}`;
+                console.log(`Loading image for ${op.name} from:`, imageUrl);
+
+                // Add error handling and retries
+                const response = await fetch(imageUrl);
+                if (!response.ok) {
+                  throw new Error(`Failed to load image: ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                if (!blob.type.startsWith('image/')) {
+                  throw new Error(`Invalid image format: ${blob.type}`);
+                }
+
+                const img = await faceapi.fetchImage(URL.createObjectURL(blob));
+                console.log(`Image loaded for ${op.name}, dimensions:`, img.width, 'x', img.height);
+
+                const detection = await faceapi
+                  .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
+                    inputSize: 416,
+                    scoreThreshold: 0.3
+                  }))
+                  .withFaceLandmarks()
+                  .withFaceDescriptor();
+
+                if (!detection) {
+                  console.warn(`No face detected in image for operator ${op.name}`);
+                  return null;
+                }
+
+                return new faceapi.LabeledFaceDescriptors(op._id, [detection.descriptor]);
+              } catch (error) {
+                console.error(`Error processing image for operator ${op.name}:`, error);
                 return null;
               }
-              return new faceapi.LabeledFaceDescriptors(op._id, [detection.descriptor]);
-            } catch (error) {
-              console.error(`Error loading image for operator ${op.name}:`, error);
-              return null;
-            }
-          })
-        );
-        
-        const validDescriptors = descriptors.filter((d) => d !== null);
-        setLabeledDescriptors(validDescriptors);
-        if (validDescriptors.length === 0) {
-          alert('No valid face descriptors found for operators in this station.');
+            })
+          );
+
+          const validDescriptors = descriptors.filter(d => d !== null);
+          console.log('Valid descriptors found:', validDescriptors.length);
+          setLabeledDescriptors(validDescriptors);
+
+          if (validDescriptors.length === 0) {
+            alert('No valid face descriptors found. Please check operator images.');
+          }
+        } catch (error) {
+          console.error('Error in loadDescriptors:', error);
+          alert('Error loading face descriptors');
         }
       };
 
