@@ -26,25 +26,13 @@ const MainPage = () => {
   useEffect(() => {
     const loadModelsAndData = async () => {
       try {
-        // Set backend and wait for TF to be ready
         await faceapi.tf.setBackend('webgl');
         await faceapi.tf.ready();
-        
-        // Use absolute paths for model loading
-        const MODEL_URL = `${window.location.origin}/models`;
-        console.log('Loading models from:', MODEL_URL);
-        
-        // Load models sequentially to avoid race conditions
-        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-        console.log('SSD MobileNet loaded');
-        
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-        console.log('Face Landmark Model loaded');
-        
-        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-        console.log('Face Recognition Model loaded');
-        
-        console.log('All face recognition models loaded successfully');
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+          faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+        ]);
         setModelsLoaded(true);
 
         const token = localStorage.getItem('token');
@@ -293,68 +281,39 @@ const MainPage = () => {
       if (!selectedStation || !modelsLoaded) return;
 
       const loadDescriptors = async () => {
-        try {
-          const stationOperators = operators.filter((op) => op.station === selectedStation);
-          if (stationOperators.length === 0) {
-            console.log('No operators found for station:', selectedStation);
-            setLabeledDescriptors([]);
-            return;
-          }
+        const stationOperators = operators.filter((op) => op.station === selectedStation);
+        if (stationOperators.length === 0) {
+          setLabeledDescriptors([]);
+          return;
+        }
 
-          console.log('Loading descriptors for operators:', stationOperators.map(op => op.name));
-
-          const descriptors = await Promise.all(
-            stationOperators.map(async (op) => {
-              try {
-                // Use backend URL for images instead of frontend
-                const imageUrl = `https://op-copy-backend.onrender.com${op.imagePath}`;
-                console.log(`Loading image for ${op.name} from:`, imageUrl);
-
-                // Add error handling and retries
-                const response = await fetch(imageUrl);
-                if (!response.ok) {
-                  throw new Error(`Failed to load image: ${response.statusText}`);
-                }
-
-                const blob = await response.blob();
-                if (!blob.type.startsWith('image/')) {
-                  throw new Error(`Invalid image format: ${blob.type}`);
-                }
-
-                const img = await faceapi.fetchImage(URL.createObjectURL(blob));
-                console.log(`Image loaded for ${op.name}, dimensions:`, img.width, 'x', img.height);
-
-                const detection = await faceapi
-                  .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({
-                    inputSize: 416,
-                    scoreThreshold: 0.3
-                  }))
-                  .withFaceLandmarks()
-                  .withFaceDescriptor();
-
-                if (!detection) {
-                  console.warn(`No face detected in image for operator ${op.name}`);
-                  return null;
-                }
-
-                return new faceapi.LabeledFaceDescriptors(op._id, [detection.descriptor]);
-              } catch (error) {
-                console.error(`Error processing image for operator ${op.name}:`, error);
+        const descriptors = await Promise.all(
+          stationOperators.map(async (op) => {
+            try {
+              // Use the frontend's base URL for deployed images
+              const baseUrl = process.env.REACT_APP_FRONTEND_URL || '';
+              const imageUrl = `${baseUrl}${op.imagePath}`;
+              console.log(`Fetching image for operator ${op.name}: ${imageUrl}`);
+              const img = await faceapi.fetchImage(imageUrl);
+              const detection = await faceapi
+                .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+              if (!detection) {
+                console.warn(`No face detected in image for operator ${op.name}`);
                 return null;
               }
-            })
-          );
-
-          const validDescriptors = descriptors.filter(d => d !== null);
-          console.log('Valid descriptors found:', validDescriptors.length);
-          setLabeledDescriptors(validDescriptors);
-
-          if (validDescriptors.length === 0) {
-            alert('No valid face descriptors found. Please check operator images.');
-          }
-        } catch (error) {
-          console.error('Error in loadDescriptors:', error);
-          alert('Error loading face descriptors');
+              return new faceapi.LabeledFaceDescriptors(op._id, [detection.descriptor]);
+            } catch (error) {
+              console.error(`Error loading image for operator ${op.name}:`, error);
+              return null;
+            }
+          })
+        );
+        const validDescriptors = descriptors.filter((d) => d !== null);
+        setLabeledDescriptors(validDescriptors);
+        if (validDescriptors.length === 0) {
+          alert('No valid face descriptors found for operators in this station.');
         }
       };
 
@@ -362,18 +321,22 @@ const MainPage = () => {
     }, [selectedStation, modelsLoaded]);
 
     const recognizeFace = async () => {
-      if (!modelsLoaded) {
-        alert('Face recognition models are still loading. Please wait.');
-        return;
-      }
-
       if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
-        alert('Camera is not ready yet. Please wait.');
+        alert('Webcam is not ready. Please ensure camera access is granted.');
+        setIsRecognizing(false);
+        return;
+      }
+      if (labeledDescriptors.length === 0) {
+        alert('No operators with valid face data for this station.');
+        setIsRecognizing(false);
         return;
       }
 
+      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
+      console.log('Face matcher initialized with', labeledDescriptors.length, 'known faces');
+
+      const startTime = Date.now();
       try {
-        setIsRecognizing(true);
         const detection = await faceapi
           .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
           .withFaceLandmarks()
