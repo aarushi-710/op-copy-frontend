@@ -26,19 +26,25 @@ const MainPage = () => {
   useEffect(() => {
     const loadModelsAndData = async () => {
       try {
+        // Set backend and wait for TF to be ready
         await faceapi.tf.setBackend('webgl');
         await faceapi.tf.ready();
         
-        // Updated model loading
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-          faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
-          faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-          faceapi.nets.tinyYolov2.loadFromUri('/models')
-        ]);
+        // Use absolute paths for model loading
+        const MODEL_URL = `${window.location.origin}/models`;
+        console.log('Loading models from:', MODEL_URL);
         
-        console.log('Face recognition models loaded successfully');
+        // Load models sequentially to avoid race conditions
+        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+        console.log('SSD MobileNet loaded');
+        
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        console.log('Face Landmark Model loaded');
+        
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+        console.log('Face Recognition Model loaded');
+        
+        console.log('All face recognition models loaded successfully');
         setModelsLoaded(true);
 
         const token = localStorage.getItem('token');
