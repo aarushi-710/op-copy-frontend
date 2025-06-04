@@ -159,7 +159,7 @@ const MainPage = () => {
     // Helper to get available LED indexes (0-16)
     const getAvailableLedIndexes = () => {
       const assigned = operators.map(op => op.ledIndex);
-      const allIndexes = Array.from({ length: 17 }, (_, i) => i);
+      const allIndexes = Array.from({ length: 21 }, (_, i) => i);
       return allIndexes.filter(idx => !assigned.includes(idx));
     };
 
