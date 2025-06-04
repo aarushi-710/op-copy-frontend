@@ -350,22 +350,18 @@ const MainPage = () => {
     }, [selectedStation, modelsLoaded]);
 
     const recognizeFace = async () => {
+      if (!modelsLoaded) {
+        alert('Face recognition models are still loading. Please wait.');
+        return;
+      }
+
       if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
-        alert('Webcam is not ready. Please ensure camera access is granted.');
-        setIsRecognizing(false);
-        return;
-      }
-      if (labeledDescriptors.length === 0) {
-        alert('No operators with valid face data for this station.');
-        setIsRecognizing(false);
+        alert('Camera is not ready yet. Please wait.');
         return;
       }
 
-      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
-      console.log('Face matcher initialized with', labeledDescriptors.length, 'known faces');
-
-      const startTime = Date.now();
       try {
+        setIsRecognizing(true);
         const detection = await faceapi
           .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
           .withFaceLandmarks()
