@@ -75,7 +75,7 @@ const MainPage = () => {
         const previewUrl = URL.createObjectURL(file);
         setPreview(previewUrl);
       }
-    };
+    }; 
 
     const handleAddOperator = async (e) => {
       e.preventDefault();
@@ -290,15 +290,20 @@ const MainPage = () => {
         const descriptors = await Promise.all(
           stationOperators.map(async (op) => {
             try {
-              // Use the frontend's base URL for deployed images
-              const baseUrl = process.env.REACT_APP_FRONTEND_URL || '';
-              const imageUrl = `${baseUrl}${op.imagePath}`;
-              console.log(`Fetching image for operator ${op.name}: ${imageUrl}`);
+              // Use absolute URL for images
+              const imageUrl = `${window.location.origin}${op.imagePath}`;
+              // Add error handling for image loading
+              const response = await fetch(imageUrl);
+              if (!response.ok) {
+                throw new Error(`Failed to load image: ${response.statusText}`);
+              }
+              
               const img = await faceapi.fetchImage(imageUrl);
               const detection = await faceapi
                 .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
+                
               if (!detection) {
                 console.warn(`No face detected in image for operator ${op.name}`);
                 return null;
@@ -310,6 +315,7 @@ const MainPage = () => {
             }
           })
         );
+        
         const validDescriptors = descriptors.filter((d) => d !== null);
         setLabeledDescriptors(validDescriptors);
         if (validDescriptors.length === 0) {
