@@ -28,11 +28,17 @@ const MainPage = () => {
       try {
         await faceapi.tf.setBackend('webgl');
         await faceapi.tf.ready();
+        
+        // Updated model loading
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
           faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
           faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+          faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+          faceapi.nets.tinyYolov2.loadFromUri('/models')
         ]);
+        
+        console.log('Face recognition models loaded successfully');
         setModelsLoaded(true);
 
         const token = localStorage.getItem('token');
