@@ -213,13 +213,34 @@ const MainPage = () => {
                   onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
                   className="border p-2 mb-2 w-full"
                 />
-                <input
-                  type="text"
-                  placeholder="Station"
+                <select
                   value={formData.station}
                   onChange={(e) => setFormData({ ...formData, station: e.target.value })}
                   className="border p-2 mb-2 w-full"
-                />
+                  required
+                >
+                  <option value="">Select Station</option>
+                  <option value="Station 1">Main Board VI</option>
+                  <option value="Station 2">Sub board VI</option>
+                  <option value="Station 3">LDA Inspection</option>
+                  <option value="Station 4">Front camera copper foil paste</option>
+                  <option value="Station 5">Front camera installation</option>
+                  <option value="Station 6">Rear camera installation</option>
+                  <option value="Station 1">IDLE</option>
+                  <option value="Station 2">Middle Frame Installation (1)</option>
+                  <option value="Station 3">Middle Frame Installation (2)</option>
+                  <option value="Station 4">Key Part 3 (1)</option>
+                  <option value="Station 5">Key Part 3 (2)</option>
+                  <option value="Station 6">YH2</option>
+                  <option value="Station 1">Middle Frame Inspection</option>
+                  <option value="Station 2">Battery cover Pressing (1)</option>
+                  <option value="Station 3">Battery cover Pressing (2)</option>
+                  <option value="Station 4">Battery cover VI (1)</option>
+                  <option value="Station 5">Battery cover VI (2)</option>
+                  <option value="Station 6">Vibrator installation</option>
+                  <option value="Station 5">Speaker installation(2)</option>
+                  <option value="Station 6">Receiver installation</option>
+                </select>
                 <select
                   value={formData.ledIndex}
                   onChange={(e) => setFormData({ ...formData, ledIndex: e.target.value })}
