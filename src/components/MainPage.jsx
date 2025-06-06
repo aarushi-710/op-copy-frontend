@@ -39,8 +39,8 @@ const MainPage = () => {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [operatorsRes, attendanceRes] = await Promise.all([
-          axios.get(`https://backend.yourcat.tech/api/operators/${line}`, { headers }),
-          axios.get(`https://backend.yourcat.tech/api/attendance/${line}/${new Date().toISOString().split('T')[0]}`, { headers }),
+          axios.get(`https://op-copy-backend.onrender.com/api/operators/${line}`, { headers }),
+          axios.get(`https://op-copy-backend.onrender.com/api/attendance/${line}/${new Date().toISOString().split('T')[0]}`, { headers }),
         ]);
 
         setOperators(operatorsRes.data || []);
@@ -106,7 +106,7 @@ const MainPage = () => {
         if (process.env.NODE_ENV !== 'production') {
           const formDataToSend = new FormData();
           formDataToSend.append('file', formData.file);
-          const uploadRes = await axios.post('https://backend.yourcat.tech/upload', formDataToSend, {
+          const uploadRes = await axios.post('https://op-copy-backend.onrender.com/upload', formDataToSend, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
           finalImagePath = uploadRes.data.imagePath;
@@ -122,7 +122,7 @@ const MainPage = () => {
         };
 
         const res = await axios.post(
-          `https://backend.yourcat.tech/api/operators/${line}`,
+          `https://op-copy-backend.onrender.com/api/operators/${line}`,
           operatorData,
           {
             headers: {
@@ -146,7 +146,7 @@ const MainPage = () => {
 
     const handleDeleteOperator = async (id) => {
       try {
-        await axios.delete(`https://backend.yourcat.tech/api/operators/${line}/${id}`, {
+        await axios.delete(`https://op-copy-backend.onrender.com/api/operators/${line}/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         setOperators(operators.filter((op) => op._id !== id));
@@ -226,20 +226,20 @@ const MainPage = () => {
                   <option value="Station 4">Front camera copper foil paste</option>
                   <option value="Station 5">Front camera installation</option>
                   <option value="Station 6">Rear camera installation</option>
-                  <option value="Station 1">IDLE</option>
-                  <option value="Station 2">Middle Frame Installation (1)</option>
-                  <option value="Station 3">Middle Frame Installation (2)</option>
-                  <option value="Station 4">Key Part 3 (1)</option>
-                  <option value="Station 5">Key Part 3 (2)</option>
-                  <option value="Station 6">YH2</option>
-                  <option value="Station 1">Middle Frame Inspection</option>
-                  <option value="Station 2">Battery cover Pressing (1)</option>
-                  <option value="Station 3">Battery cover Pressing (2)</option>
-                  <option value="Station 4">Battery cover VI (1)</option>
-                  <option value="Station 5">Battery cover VI (2)</option>
-                  <option value="Station 6">Vibrator installation</option>
-                  <option value="Station 5">Speaker installation(2)</option>
-                  <option value="Station 6">Receiver installation</option>
+                  <option value="Station 7">IDLE</option>
+                  <option value="Station 8">Middle Frame Installation (1)</option>
+                  <option value="Station 9">Middle Frame Installation (2)</option>
+                  <option value="Station 10">Key Part 3 (1)</option>
+                  <option value="Station 11">Key Part 3 (2)</option>
+                  <option value="Station 12">YH2</option>
+                  <option value="Station 13">Middle Frame Inspection</option>
+                  <option value="Station 14">Battery cover Pressing (1)</option>
+                  <option value="Station 15">Battery cover Pressing (2)</option>
+                  <option value="Station 16">Battery cover VI (1)</option>
+                  <option value="Station 17">Battery cover VI (2)</option>
+                  <option value="Station 18">Vibrator installation</option>
+                  <option value="Station 19">Speaker installation</option>
+                  <option value="Station 20">Receiver installation</option>
                 </select>
                 <select
                   value={formData.ledIndex}
@@ -369,7 +369,7 @@ const MainPage = () => {
         if (!detection) {
           alert('No face detected in webcam feed.');
           await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
+            `https://op-copy-backend.onrender.com/api/attendance/${line}/fail`,
             { station: selectedStation, timestamp: currentTimestamp },
             { headers }
           );
@@ -392,7 +392,7 @@ const MainPage = () => {
             console.log('Sending attendance record:', attendanceRecord);
             try {
               const response = await axios.post(
-                `https://backend.yourcat.tech/api/attendance/${line}`,
+                `https://op-copy-backend.onrender.com/api/attendance/${line}`,
                 attendanceRecord,
                 { headers }
               );
@@ -408,7 +408,7 @@ const MainPage = () => {
         } else {
           alert('No suitable operator found for the detected face (no match >= 60%).');
           await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
+            `https://op-copy-backend.onrender.com/api/attendance/${line}/fail`,
             { station: selectedStation, timestamp: currentTimestamp },
             { headers }
           );
@@ -501,7 +501,7 @@ const MainPage = () => {
 
     const handleExport = async () => {
       try {
-        const response = await axios.get(`https://backend.yourcat.tech/api/attendance/${line}/${exportDate}`, {
+        const response = await axios.get(`https://op-copy-backend.onrender.com/api/attendance/${line}/${exportDate}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
           responseType: 'blob',
         });
