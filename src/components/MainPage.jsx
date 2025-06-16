@@ -547,36 +547,30 @@ const MainPage = () => {
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
         <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-xl font-bold mb-4">All Operators</h2>
-          <table className="min-w-full bg-white border">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 border">Name</th>
-                <th className="py-2 px-4 border">Employee ID</th>
-                <th className="py-2 px-4 border">Station</th>
-                <th className="py-2 px-4 border">LED Index</th>
-                <th className="py-2 px-4 border">Image</th>
-              </tr>
-            </thead>
-            <tbody>
-              {operators.map((op) => (
-                <tr key={op._id} className="border-t">
-                  <td className="py-2 px-4">{op.name}</td>
-                  <td className="py-2 px-4">{op.employeeId}</td>
-                  <td className="py-2 px-4">{op.station}</td>
-                  <td className="py-2 px-4">{op.ledIndex}</td>
-                  <td className="py-2 px-4">
-                    <img 
-                      src={`https://op-copy-backend.onrender.com${op.imagePath}`}
-                      alt={`${op.name}'s photo`}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button onClick={onClose} className="mt-4 text-blue-500 hover:underline">Close</button>
+          <h2 className="text-xl font-bold mb-4">Operators List</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {operators.map((op) => (
+              <div key={op._id} className="border rounded-lg p-4 flex flex-col items-center">
+                <img 
+                  src={`https://op-copy-backend.onrender.com${op.imagePath}`}
+                  alt={`${op.name}'s photo`}
+                  className="w-32 h-32 object-cover rounded-full mb-3"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://via.placeholder.com/128?text=No+Image';
+                  }}
+                />
+                <h3 className="text-lg font-semibold mb-1">{op.name}</h3>
+                <p className="text-gray-600">{op.station}</p>
+              </div>
+            ))}
+          </div>
+          <button 
+            onClick={onClose} 
+            className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Close
+          </button>
         </div>
       </div>
     );
