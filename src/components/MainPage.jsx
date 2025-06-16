@@ -21,6 +21,7 @@ const MainPage = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [showViewModal, setShowViewModal] = useState(false);
   const webcamRef = useRef(null);
 
   useEffect(() => {
@@ -542,6 +543,45 @@ const MainPage = () => {
     );
   };
 
+  const ViewOperatorsModal = ({ onClose }) => {
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
+        <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-xl font-bold mb-4">All Operators</h2>
+          <table className="min-w-full bg-white border">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 border">Name</th>
+                <th className="py-2 px-4 border">Employee ID</th>
+                <th className="py-2 px-4 border">Station</th>
+                <th className="py-2 px-4 border">LED Index</th>
+                <th className="py-2 px-4 border">Image</th>
+              </tr>
+            </thead>
+            <tbody>
+              {operators.map((op) => (
+                <tr key={op._id} className="border-t">
+                  <td className="py-2 px-4">{op.name}</td>
+                  <td className="py-2 px-4">{op.employeeId}</td>
+                  <td className="py-2 px-4">{op.station}</td>
+                  <td className="py-2 px-4">{op.ledIndex}</td>
+                  <td className="py-2 px-4">
+                    <img 
+                      src={`https://op-copy-backend.onrender.com${op.imagePath}`}
+                      alt={`${op.name}'s photo`}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button onClick={onClose} className="mt-4 text-blue-500 hover:underline">Close</button>
+        </div>
+      </div>
+    );
+  };
+
   const displayDateTime = (timestamp) => {
     if (!timestamp) {
       console.warn('Timestamp is missing or undefined:', timestamp);
@@ -577,14 +617,29 @@ const MainPage = () => {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Attendance System - Line {line}</h1>
       {error && <div className="text-red-500 mb-4">{error}</div>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <button onClick={() => setShowUpdateModal(true)} className="bg-blue-500 text-white px-4 py-2 rounded">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <button 
+          onClick={() => setShowViewModal(true)} 
+          className="bg-purple-500 text-white px-4 py-2 rounded"
+        >
+          View Operators
+        </button>
+        <button 
+          onClick={() => setShowUpdateModal(true)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
           Update Operators
         </button>
-        <button onClick={() => setShowMarkModal(true)} className="bg-green-500 text-white px-4 py-2 rounded">
+        <button 
+          onClick={() => setShowMarkModal(true)} 
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
           Mark Attendance
         </button>
-        <button onClick={() => setShowExportModal(true)} className="bg-yellow-500 text-white px-4 py-2 rounded">
+        <button 
+          onClick={() => setShowExportModal(true)} 
+          className="bg-yellow-500 text-white px-4 py-2 rounded"
+        >
           Export Attendance
         </button>
       </div>
@@ -626,6 +681,7 @@ const MainPage = () => {
       {showUpdateModal && <UpdateOperatorsModal onClose={() => setShowUpdateModal(false)} />}
       {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} />}
       {showExportModal && <ExportAttendanceModal onClose={() => setShowExportModal(false)} />}
+      {showViewModal && <ViewOperatorsModal onClose={() => setShowViewModal(false)} />}
     </div>
   );
 };
