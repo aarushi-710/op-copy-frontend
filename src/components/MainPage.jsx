@@ -545,99 +545,181 @@ const MainPage = () => {
 
   const ViewOperatorsModal = ({ onClose }) => {
     const [selectedOperator, setSelectedOperator] = useState(null);
+    const [showErrors, setShowErrors] = useState(false);
+
+    // Define station-specific errors
+    const stationErrors = {
+      'Receiver installation': [
+        "RAUD^Receiver_FR_200.000Hz",
+        "RAUD^Receiver_RB_200.000Hz",
+        "RAUD^Receiver_THD_200.000Hz",
+        "RAUD^HSMIC2REC_LoopBack_Sampling"
+      ],
+      'Middle Frame Installation (1)': [
+        "ANT^NR5G_N78_636666_DBM_RSSI",
+        "GSM1800_698_DBM_Power_29",
+        "WCDMA_B8_2788_DBM_Power_24",
+        "ANT^LTE_B1_18300_DBM_RSSI",
+        "ANT^WCDMA_B8_2788",
+        "ANT^WCDMA_B5_4183_DBM_",
+        "ANT^NR5G_N3_349500",
+        "ANT^GSM1800_698_DBM_Power",
+        "ANT^GPS_FreqDrift_1"
+      ],
+      'Middle Frame Installation (2)': [
+        "ANT^NR5G_N78_636666_DBM_RSSI",
+        "GSM1800_698_DBM_Power_29",
+        "WCDMA_B8_2788_DBM_Power_24",
+        "ANT^LTE_B1_18300_DBM_RSSI",
+        "ANT^WCDMA_B8_2788",
+        "ANT^WCDMA_B5_4183_DBM_",
+        "ANT^NR5G_N3_349500",
+        "ANT^GSM1800_698_DBM_Power",
+        "ANT^GPS_FreqDrift_1"
+      ],
+      'Front camera installation': [
+        "CAM1^Front8MBlemish_MuraCount",
+        "CAM1^CatFront8MSFR37"
+      ],
+      'Rear camera installation': [
+        "CAM1^CatRearWideSFRFar50Result",
+        "CAM1^RearMainBlemish50_MuraCount",
+        "CAM1^RearMainBlemish50_BlemishCount"
+      ]
+    };
 
     const handleOperatorClick = (operator) => {
       setSelectedOperator(operator);
+      setShowErrors(false);
     };
 
     const handleBack = () => {
       setSelectedOperator(null);
+      setShowErrors(false);
+    };
+
+    const toggleErrorsView = () => {
+      setShowErrors(!showErrors);
     };
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
         <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {selectedOperator ? (
-          // Detailed view of selected operator
-          <div>
-            <button 
-              onClick={handleBack}
-              className="mb-4 text-blue-500 hover:underline flex items-center"
-            >
-              ← Back to list
-            </button>
-            <div className="flex flex-col md:flex-row items-start gap-6">
-              <div className="w-full md:w-1/3">
-                <img 
-                  src={`https://backend.yourcat.tech${selectedOperator.imagePath}`}
-                  alt={`${selectedOperator.name}'s photo`}
-                  className="w-full rounded-lg shadow-lg"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
-                  }}
-                />
-              </div>
-              <div className="w-full md:w-2/3">
-                <h2 className="text-2xl font-bold mb-4">{selectedOperator.name}</h2>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm text-gray-600">Employee ID</p>
-                      <p className="font-semibold">{selectedOperator.employeeId}</p>
+          {selectedOperator ? (
+            <div>
+              <button 
+                onClick={handleBack}
+                className="mb-4 text-blue-500 hover:underline flex items-center"
+              >
+                ← Back to list
+              </button>
+              <div className="flex flex-col md:flex-row items-start gap-6">
+                <div className="w-full md:w-1/3">
+                  <img 
+                    src={`https://backend.yourcat.tech${selectedOperator.imagePath}`}
+                    alt={`${selectedOperator.name}'s photo`}
+                    className="w-full rounded-lg shadow-lg"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                    }}
+                  />
+                  <button
+                    onClick={toggleErrorsView}
+                    className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full"
+                  >
+                    {showErrors ? 'Hide Errors' : 'View Errors'}
+                  </button>
+                </div>
+                <div className="w-full md:w-2/3">
+                  <h2 className="text-2xl font-bold mb-4">{selectedOperator.name}</h2>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">Employee ID</p>
+                        <p className="font-semibold">{selectedOperator.employeeId}</p>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">Station</p>
+                        <p className="font-semibold">{selectedOperator.station}</p>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">LED Index</p>
+                        <p className="font-semibold">{selectedOperator.ledIndex}</p>
+                      </div>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm text-gray-600">Station</p>
-                      <p className="font-semibold">{selectedOperator.station}</p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded">
-                      <p className="text-sm text-gray-600">LED Index</p>
-                      <p className="font-semibold">{selectedOperator.ledIndex}</p>
-                    </div>
+
+                    {showErrors && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-3">Possible Errors</h3>
+                        <table className="min-w-full border">
+                          <thead>
+                            <tr>
+                              <th className="py-2 px-4 border bg-gray-50">Error</th>
+                              <th className="py-2 px-4 border bg-gray-50">Count</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(stationErrors[selectedOperator.station] || []).map((error, index) => (
+                              <tr key={index}>
+                                <td className="py-2 px-4 border">{error}</td>
+                                <td className="py-2 px-4 border text-center">0</td>
+                              </tr>
+                            ))}
+                            {!stationErrors[selectedOperator.station] && (
+                              <tr>
+                                <td colSpan="2" className="py-2 px-4 border text-center text-gray-500">
+                                  No specific errors defined for this station
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          // List view of all operators
-          <>
-            <h2 className="text-xl font-bold mb-4">Operators List</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {operators.map((op) => (
-                <div 
-                  key={op._id} 
-                  className="border rounded-lg p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => handleOperatorClick(op)}
-                >
-                  <div className="w-32 h-32 mb-3 relative">
-                    <img 
-                      src={`https://backend.yourcat.tech${op.imagePath}`}
-                      alt={`${op.name}'s photo`}
-                      className="w-full h-full object-cover rounded-full"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
-                      }}
-                    />
+          ) : (
+            // List view of all operators
+            <>
+              <h2 className="text-xl font-bold mb-4">Operators List</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {operators.map((op) => (
+                  <div 
+                    key={op._id} 
+                    className="border rounded-lg p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => handleOperatorClick(op)}
+                  >
+                    <div className="w-32 h-32 mb-3 relative">
+                      <img 
+                        src={`https://backend.yourcat.tech${op.imagePath}`}
+                        alt={`${op.name}'s photo`}
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                        }}
+                      />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-1 hover:text-blue-500">{op.name}</h3>
+                    <p className="text-gray-600">{op.station}</p>
                   </div>
-                  <h3 className="text-lg font-semibold mb-1 hover:text-blue-500">{op.name}</h3>
-                  <p className="text-gray-600">{op.station}</p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        <button 
-          onClick={onClose} 
-          className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Close
-        </button>
+                ))}
+              </div>
+            </>
+          )}
+          <button 
+            onClick={onClose} 
+            className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Close
+          </button>
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const displayDateTime = (timestamp) => {
     if (!timestamp) {
