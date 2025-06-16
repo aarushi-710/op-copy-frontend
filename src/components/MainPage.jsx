@@ -544,50 +544,100 @@ const MainPage = () => {
   };
 
   const ViewOperatorsModal = ({ onClose }) => {
+    const [selectedOperator, setSelectedOperator] = useState(null);
+
+    const handleOperatorClick = (operator) => {
+      setSelectedOperator(operator);
+    };
+
+    const handleBack = () => {
+      setSelectedOperator(null);
+    };
+
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
         <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-xl font-bold mb-4">Operators List</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {operators.map((op) => (
-              <div key={op._id} className="border rounded-lg p-4 flex flex-col items-center">
-                <div className="w-32 h-32 mb-3 relative">
-                  <img 
-                    src={`https://backend.yourcat.tech${op.imagePath}`}
-                    alt={`${op.name}'s photo`}
-                    className="w-full h-full object-cover rounded-full"
-                    onError={(e) => {
-                      console.error(`Failed to load image for ${op.name}:`, e);
-                      e.target.onerror = null;
-                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
-                    }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity duration-200 rounded-full">
-                    <a 
-                      href={`https://backend.yourcat.tech${op.imagePath}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-white text-sm"
-                    >
-                      View Full Image
-                    </a>
+        {selectedOperator ? (
+          // Detailed view of selected operator
+          <div>
+            <button 
+              onClick={handleBack}
+              className="mb-4 text-blue-500 hover:underline flex items-center"
+            >
+              ← Back to list
+            </button>
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              <div className="w-full md:w-1/3">
+                <img 
+                  src={`https://backend.yourcat.tech${selectedOperator.imagePath}`}
+                  alt={`${selectedOperator.name}'s photo`}
+                  className="w-full rounded-lg shadow-lg"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                  }}
+                />
+              </div>
+              <div className="w-full md:w-2/3">
+                <h2 className="text-2xl font-bold mb-4">{selectedOperator.name}</h2>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-3 rounded">
+                      <p className="text-sm text-gray-600">Employee ID</p>
+                      <p className="font-semibold">{selectedOperator.employeeId}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <p className="text-sm text-gray-600">Station</p>
+                      <p className="font-semibold">{selectedOperator.station}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <p className="text-sm text-gray-600">LED Index</p>
+                      <p className="font-semibold">{selectedOperator.ledIndex}</p>
+                    </div>
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-1">{op.name}</h3>
-                <p className="text-gray-600">{op.station}</p>
               </div>
-            ))}
+            </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Close
-          </button>
-        </div>
+        ) : (
+          // List view of all operators
+          <>
+            <h2 className="text-xl font-bold mb-4">Operators List</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {operators.map((op) => (
+                <div 
+                  key={op._id} 
+                  className="border rounded-lg p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleOperatorClick(op)}
+                >
+                  <div className="w-32 h-32 mb-3 relative">
+                    <img 
+                      src={`https://backend.yourcat.tech${op.imagePath}`}
+                      alt={`${op.name}'s photo`}
+                      className="w-full h-full object-cover rounded-full"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                      }}
+                    />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1 hover:text-blue-500">{op.name}</h3>
+                  <p className="text-gray-600">{op.station}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        <button 
+          onClick={onClose} 
+          className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Close
+        </button>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   const displayDateTime = (timestamp) => {
     if (!timestamp) {
