@@ -551,15 +551,28 @@ const MainPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {operators.map((op) => (
               <div key={op._id} className="border rounded-lg p-4 flex flex-col items-center">
-                <img 
-                  src={`https://op-copy-backend.onrender.com${op.imagePath}`}
-                  alt={`${op.name}'s photo`}
-                  className="w-32 h-32 object-cover rounded-full mb-3"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/128?text=No+Image';
-                  }}
-                />
+                <div className="w-32 h-32 mb-3 relative">
+                  <img 
+                    src={`https://backend.yourcat.tech${op.imagePath}`}
+                    alt={`${op.name}'s photo`}
+                    className="w-full h-full object-cover rounded-full"
+                    onError={(e) => {
+                      console.error(`Failed to load image for ${op.name}:`, e);
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity duration-200 rounded-full">
+                    <a 
+                      href={`https://backend.yourcat.tech${op.imagePath}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-white text-sm"
+                    >
+                      View Full Image
+                    </a>
+                  </div>
+                </div>
                 <h3 className="text-lg font-semibold mb-1">{op.name}</h3>
                 <p className="text-gray-600">{op.station}</p>
               </div>
