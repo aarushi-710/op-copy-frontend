@@ -589,6 +589,14 @@ const MainPage = () => {
         </button>
       </div>
       <div>
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setShowAttendanceModal(true)}
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Show Attendance
+          </button>
+        </div>
         <h2 className="text-xl font-semibold mb-2">Today's Attendance</h2>
         <table className="min-w-full bg-white border">
           <thead>
@@ -607,7 +615,6 @@ const MainPage = () => {
               </tr>
             ) : (
               attendance.map((record) => {
-                console.log('Attendance record in table:', record);
                 const { date, time } = displayDateTime(record.timestamp);
                 return (
                   <tr key={record._id} className="border-t">
@@ -626,6 +633,53 @@ const MainPage = () => {
       {showUpdateModal && <UpdateOperatorsModal onClose={() => setShowUpdateModal(false)} />}
       {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} />}
       {showExportModal && <ExportAttendanceModal onClose={() => setShowExportModal(false)} />}
+      {showAttendanceModal && <AttendanceModal attendance={attendance} onClose={() => setShowAttendanceModal(false)} />}
+// Modal to show complete attendance
+const AttendanceModal = ({ attendance, onClose }) => {
+  // Sort by timestamp ascending
+  const sorted = [...attendance].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h2 className="text-xl font-bold mb-4">All Attendance Records</h2>
+        <table className="min-w-full bg-white border mb-4">
+          <thead>
+            <tr>
+              <th className="py-2 px-4 border">Operator Name</th>
+              <th className="py-2 px-4 border">Employee ID</th>
+              <th className="py-2 px-4 border">Station</th>
+              <th className="py-2 px-4 border">Date</th>
+              <th className="py-2 px-4 border">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="py-2 px-4 text-center">No attendance records found.</td>
+              </tr>
+            ) : (
+              sorted.map((record, idx) => {
+                const dateObj = new Date(record.timestamp);
+                const date = dateObj.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
+                const time = dateObj.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+                return (
+                  <tr key={record._id || idx} className="border-t">
+                    <td className="py-2 px-4">{record.operatorName}</td>
+                    <td className="py-2 px-4">{record.employeeId}</td>
+                    <td className="py-2 px-4">{record.station}</td>
+                    <td className="py-2 px-4">{date}</td>
+                    <td className="py-2 px-4">{time}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+        <button onClick={onClose} className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Close</button>
+      </div>
+    </div>
+  );
+};
     </div>
   );
 };
