@@ -783,12 +783,26 @@ const MainPage = () => {
         </button>
       </div>
       <div>
-        <h2 className="text-xl font-semibold mb-2">Today's Attendance</h2>
+        <div className="flex justify-end mb-4">
+          <button 
+            onClick={() => setShowMarkModal(true)} 
+            className="bg-green-500 text-white px-4 py-2 rounded"
+          >
+            Mark Attendance
+          </button>
+        </div>
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="py-2 px-4 border">Operator Name</th>
-              <th className="py-2 px-4 border">Employee ID</th>
+              <th className="py-2 px-4 border">Experienced OP</th>
+              {Array.from(new Set(operators.map(op => op.station))).length > 0 && (
+                <th className="py-2 px-4 border text-center" colSpan={Array.from(new Set(operators.map(op => op.station))).length}>
+                  Critical Stations
+                </th>
+              )}
+            </tr>
+            <tr>
+              <th className="py-2 px-4 border"></th>
               {Array.from(new Set(operators.map(op => op.station))).map(station => (
                 <th key={station} className="py-2 px-4 border">{station}</th>
               ))}
@@ -797,17 +811,15 @@ const MainPage = () => {
           <tbody>
             {operators.length === 0 ? (
               <tr>
-                <td colSpan={2 + Array.from(new Set(operators.map(op => op.station))).length} className="py-2 px-4 text-center">No operators found.</td>
+                <td colSpan={1 + Array.from(new Set(operators.map(op => op.station))).length} className="py-2 px-4 text-center">No operators found.</td>
               </tr>
             ) : (
               operators.map((op) => {
-                // Find attendance records for this operator for today
                 const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
                 const stations = Array.from(new Set(operators.map(o => o.station)));
                 return (
                   <tr key={op._id} className="border-t">
-                    <td className="py-2 px-4">{op.name}</td>
-                    <td className="py-2 px-4">{op.employeeId}</td>
+                    <td className="py-2 px-4 font-semibold">{op.name}</td>
                     {stations.map(station => {
                       const present = todaysAttendance.some(a => a.station === station);
                       return (
