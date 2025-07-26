@@ -604,25 +604,24 @@ const MainPage = () => {
               <th className="py-2 px-4 border">Operator Name</th>
               <th className="py-2 px-4 border">Employee ID</th>
               <th className="py-2 px-4 border">Station</th>
-              <th className="py-2 px-4 border">Date</th>
-              <th className="py-2 px-4 border">Time</th>
+              <th className="py-2 px-4 border">Status</th>
             </tr>
           </thead>
           <tbody>
-            {attendance.length === 0 ? (
+            {operators.length === 0 ? (
               <tr>
-                <td colSpan="5" className="py-2 px-4 text-center">No attendance records found for today.</td>
+                <td colSpan="4" className="py-2 px-4 text-center">No operators found.</td>
               </tr>
             ) : (
-              attendance.map((record) => {
-                const { date, time } = displayDateTime(record.timestamp);
+              operators.map((op) => {
+                // Check if this operator has attendance marked today
+                const present = attendance.some(a => (a.operatorId === op._id || a.operatorName === op.name) && a.date === today);
                 return (
-                  <tr key={record._id} className="border-t">
-                    <td className="py-2 px-4">{record.operatorName}</td>
-                    <td className="py-2 px-4">{record.employeeId}</td>
-                    <td className="py-2 px-4">{record.station}</td>
-                    <td className="py-2 px-4">{date}</td>
-                    <td className="py-2 px-4">{time}</td>
+                  <tr key={op._id} className="border-t">
+                    <td className="py-2 px-4">{op.name}</td>
+                    <td className="py-2 px-4">{op.employeeId}</td>
+                    <td className="py-2 px-4">{op.station}</td>
+                    <td className={`py-2 px-4 font-semibold ${present ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{present ? 'Present' : 'Absent'}</td>
                   </tr>
                 );
               })
