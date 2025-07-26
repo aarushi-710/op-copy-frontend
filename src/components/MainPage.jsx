@@ -60,7 +60,7 @@ const MainPage = () => {
 
   const fetchAttendance = async () => {
     try {
-      const res = await axios.get(`https://backend.yourcat.tech/api/attendance/${line}`, {
+      const res = await axios.get(`https://backend.yourcat.tech/api/attendance/${lineNumber}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       setAttendance(res.data);
@@ -758,9 +758,11 @@ const MainPage = () => {
     };
   };
 
+  const lineNumber = line.replace(/^line/i, ''); // removes 'line' prefix if present
+
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Attendance System - Line {line}</h1>
+      <h1 className="text-2xl font-bold mb-4">Attendance System - Line {lineNumber}</h1>
       {error && <div className="text-red-500 mb-4">{error}</div>}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
