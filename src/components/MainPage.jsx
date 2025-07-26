@@ -65,8 +65,14 @@ const MainPage = () => {
       });
       setAttendance(res.data);
     } catch (error) {
+      let message = 'Failed to fetch attendance.';
+      if (error.response && error.response.data && error.response.data.message) {
+        message += ' ' + error.response.data.message;
+      } else if (error.message) {
+        message += ' ' + error.message;
+      }
       console.error('Error fetching attendance:', error);
-      setError('Failed to fetch attendance.');
+      setError(message);
     }
   };
 
