@@ -6,6 +6,7 @@ import * as faceapi from 'face-api.js';
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
 import { mqttService } from '../services/mqttService';
+import { API_ENDPOINTS } from '../config/api';
 
 // Global error handling for uncaught promise errors
 window.addEventListener('unhandledrejection', function(event) {
@@ -40,8 +41,8 @@ const MainPage = () => {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [operatorsRes, attendanceRes] = await Promise.all([
-          axios.get(`https://backend.yourcat.tech/api/operators/${line}`, { headers }),
-          axios.get(`https://backend.yourcat.tech/api/attendance/${line}/${new Date().toISOString().split('T')[0]}`, { headers }),
+          axios.get(API_ENDPOINTS.OPERATORS(line), { headers }),
+          axios.get(API_ENDPOINTS.ATTENDANCE(line, new Date().toISOString().split('T')[0]), { headers }),
         ]);
 
         setOperators(operatorsRes.data || []);
@@ -64,7 +65,7 @@ const MainPage = () => {
 
   const UpdateOperatorsModal = ({ onClose }) => {
     const [showAddForm, setShowAddForm] = useState(false);
-    const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
+    const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', file: null });
     const [preview, setPreview] = useState(null);
 
     // Handle file selection and preview
@@ -80,62 +81,32 @@ const MainPage = () => {
 
     const handleAddOperator = async (e) => {
       e.preventDefault();
-      if (!formData.file || !formData.name || !formData.employeeId || !formData.station || formData.ledIndex === '') {
-        alert('Please fill all fields, including LED Index, and upload an image.');
-        return;
-      }
-
-      const ledIndex = parseInt(formData.ledIndex, 10);
-      if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 20) {
-        alert('LED Index must be a number between 0 and 20.');
+      if (!formData.file || !formData.name || !formData.employeeId || !formData.station) {
+        alert('Please fill all fields and upload an image.');
         return;
       }
 
       try {
-        // Create a unique filename
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const fileExtension = formData.file.name.split('.').pop();
-        const fileName = `operator-${uniqueSuffix}.${fileExtension}`;
-        const imagePath = `/images/${fileName}`; // Path relative to public folder
-
-        // Note: In a browser, you cannot directly save to public/images.
-        // For development, manually place the file in frontend/public/images or use a dev server.
-        // For deployment, images must be committed to GitHub and served by Vercel.
-
-        // Optionally, upload to a local dev server (if set up)
-        let finalImagePath = imagePath;
-        if (process.env.NODE_ENV !== 'production') {
-          const formDataToSend = new FormData();
-          formDataToSend.append('file', formData.file);
-          const uploadRes = await axios.post('https://backend.yourcat.tech/upload', formDataToSend, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          finalImagePath = uploadRes.data.imagePath;
-        }
-
-        // Send operator data to backend
-        const operatorData = {
-          name: formData.name,
-          employeeId: formData.employeeId,
-          station: formData.station,
-          imagePath: finalImagePath,
-          ledIndex: ledIndex,
-        };
+        const formDataToSend = new FormData();
+        formDataToSend.append('name', formData.name);
+        formDataToSend.append('employeeId', formData.employeeId);
+        formDataToSend.append('station', formData.station);
+        formDataToSend.append('file', formData.file);
 
         const res = await axios.post(
-          `https://backend.yourcat.tech/api/operators/${line}`,
-          operatorData,
+          API_ENDPOINTS.OPERATORS(line),
+          formDataToSend,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json',
+              'Content-Type': 'multipart/form-data',
             },
           }
         );
 
         setOperators([...operators, res.data]);
         setShowAddForm(false);
-        setFormData({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
+        setFormData({ name: '', employeeId: '', station: '', file: null });
         setPreview(null);
         alert('Operator added successfully.');
       } catch (error) {
@@ -147,7 +118,7 @@ const MainPage = () => {
 
     const handleDeleteOperator = async (id) => {
       try {
-        await axios.delete(`https://backend.yourcat.tech/api/operators/${line}/${id}`, {
+        await axios.delete(`${API_ENDPOINTS.OPERATORS(line)}/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         setOperators(operators.filter((op) => op._id !== id));
@@ -155,13 +126,6 @@ const MainPage = () => {
         console.error('Error deleting operator:', error);
         alert(`Error deleting operator: ${error.response?.data?.message || error.message}`);
       }
-    };
-
-    // Helper to get available LED indexes (0-16)
-    const getAvailableLedIndexes = () => {
-      const assigned = operators.map(op => op.ledIndex);
-      const allIndexes = Array.from({ length: 21 }, (_, i) => i);
-      return allIndexes.filter(idx => !assigned.includes(idx));
     };
 
     return (
@@ -177,7 +141,6 @@ const MainPage = () => {
                 <th className="py-2 px-4 border">Name</th>
                 <th className="py-2 px-4 border">Employee ID</th>
                 <th className="py-2 px-4 border">Station</th>
-                <th className="py-2 px-4 border">LED Index</th>
                 <th className="py-2 px-4 border">Actions</th>
               </tr>
             </thead>
@@ -187,7 +150,6 @@ const MainPage = () => {
                   <td className="py-2 px-4">{op.name}</td>
                   <td className="py-2 px-4">{op.employeeId}</td>
                   <td className="py-2 px-4">{op.station}</td>
-                  <td className="py-2 px-4">{op.ledIndex}</td>
                   <td className="py-2 px-4">
                     <button onClick={() => handleDeleteOperator(op._id)} className="text-red-500 hover:underline">
                       Delete
@@ -242,17 +204,6 @@ const MainPage = () => {
                   <option value="Station 19">Speaker installation</option>
                   <option value="Station 20">Receiver installation</option>
                 </select>
-                <select
-                  value={formData.ledIndex}
-                  onChange={(e) => setFormData({ ...formData, ledIndex: e.target.value })}
-                  className="border p-2 mb-2 w-full"
-                  required
-                >
-                  <option value="">Select LED Index</option>
-                  {getAvailableLedIndexes().map(idx => (
-                    <option key={idx} value={idx}>{idx}</option>
-                  ))}
-                </select>
                 <input
                   type="file"
                   accept="image/*"
@@ -275,10 +226,8 @@ const MainPage = () => {
   };
 
   const MarkAttendanceModal = ({ onClose }) => {
-    const [selectedStation, setSelectedStation] = useState('');
     const [labeledDescriptors, setLabeledDescriptors] = useState([]);
     const [isRecognizing, setIsRecognizing] = useState(false);
-    const stations = [...new Set(operators.map((op) => op.station))];
 
     const startVideo = async () => {
       try {
@@ -300,23 +249,19 @@ const MainPage = () => {
     };
 
     useEffect(() => {
-      if (!selectedStation || !modelsLoaded) return;
+      if (!modelsLoaded) return;
 
       const loadDescriptors = async () => {
-        const stationOperators = operators.filter((op) => op.station === selectedStation);
-        if (stationOperators.length === 0) {
+        if (operators.length === 0) {
           setLabeledDescriptors([]);
           return;
         }
 
         const descriptors = await Promise.all(
-          stationOperators.map(async (op) => {
+          operators.map(async (op) => {
             try {
-              // Use the frontend's base URL for deployed images
-              const baseUrl = process.env.REACT_APP_FRONTEND_URL || '';
-              const imageUrl = `${baseUrl}${op.imagePath}`;
-              console.log(`Fetching image for operator ${op.name}: ${imageUrl}`);
-              const img = await faceapi.fetchImage(imageUrl);
+              console.log(`Fetching image for operator ${op.name}: ${op.imagePath}`);
+              const img = await faceapi.fetchImage(op.imagePath);
               const detection = await faceapi
                 .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                 .withFaceLandmarks()
@@ -335,12 +280,14 @@ const MainPage = () => {
         const validDescriptors = descriptors.filter((d) => d !== null);
         setLabeledDescriptors(validDescriptors);
         if (validDescriptors.length === 0) {
-          alert('No valid face descriptors found for operators in this station.');
+          alert('No valid face descriptors found for any operators.');
+        } else {
+          console.log(`Loaded ${validDescriptors.length} operator face descriptors`);
         }
       };
 
       loadDescriptors();
-    }, [selectedStation, modelsLoaded]);
+    }, [modelsLoaded, operators]);
 
     const recognizeFace = async () => {
       if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
@@ -349,7 +296,7 @@ const MainPage = () => {
         return;
       }
       if (labeledDescriptors.length === 0) {
-        alert('No operators with valid face data for this station.');
+        alert('No operators with valid face data found.');
         setIsRecognizing(false);
         return;
       }
@@ -367,14 +314,9 @@ const MainPage = () => {
         const headers = { Authorization: `Bearer ${token}` };
         const currentTimestamp = new Date().toISOString();
 
-        if (!detection) {
-          alert('No face detected in webcam feed.');
-          await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
-            { station: selectedStation, timestamp: currentTimestamp },
-            { headers }
-          );
-          setIsRecognizing(false);
+                 if (!detection) {
+           alert('No face detected in webcam feed.');
+           setIsRecognizing(false);
           return;
         }
 
@@ -391,9 +333,9 @@ const MainPage = () => {
               timestamp: currentTimestamp,
             };
             console.log('Sending attendance record:', attendanceRecord);
-            try {
-              const response = await axios.post(
-                `https://backend.yourcat.tech/api/attendance/${line}`,
+                         try {
+                             const response = await axios.post(
+                API_ENDPOINTS.ATTENDANCE_BASE(line),
                 attendanceRecord,
                 { headers }
               );
@@ -406,13 +348,8 @@ const MainPage = () => {
           } else {
             alert('Matched operator not found.');
           }
-        } else {
-          alert('No suitable operator found for the detected face (no match >= 60%).');
-          await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
-            { station: selectedStation, timestamp: currentTimestamp },
-            { headers }
-          );
+                 } else {
+           alert('No suitable operator found for the detected face (no match >= 60%).');
         }
       } catch (error) {
         console.error('Error during face recognition:', error);
@@ -440,16 +377,6 @@ const MainPage = () => {
       setIsRecognizing(true);
       try {
         await recognizeFace();
-
-        // After successful attendance marking
-        mqttService.publishAttendanceChange({
-          operatorName: formattedAttendance.operatorName,
-          employeeId: formattedAttendance.employeeId,
-          station: formattedAttendance.station,
-          status: formattedAttendance.status,
-          timestamp: formattedAttendance.timestamp
-        });
-
       } catch (error) {
         console.error('Error marking attendance:', error);
         alert('Error marking attendance');
@@ -462,19 +389,7 @@ const MainPage = () => {
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
         <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-xl font-bold mb-4">Mark Attendance</h2>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Select Station:</label>
-            <select
-              value={selectedStation}
-              onChange={(e) => setSelectedStation(e.target.value)}
-              className="border p-2 rounded w-full"
-            >
-              <option value="">-- Select Station --</option>
-              {stations.map((station, idx) => (
-                <option key={idx} value={station}>{station}</option>
-              ))}
-            </select>
-          </div>
+          <p className="text-gray-600 mb-4">Position your face in front of the camera to automatically mark attendance</p>
           <div className="mb-4">
             <Webcam
               audio={false}
@@ -486,8 +401,8 @@ const MainPage = () => {
           </div>
           <button
             onClick={handleMarkAttendance}
-            disabled={isRecognizing || !selectedStation}
-            className={`bg-blue-500 text-white px-4 py-2 rounded mb-4 ${isRecognizing || !selectedStation ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isRecognizing}
+            className={`bg-blue-500 text-white px-4 py-2 rounded mb-4 ${isRecognizing ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isRecognizing ? 'Recognizing...' : 'Mark Attendance'}
           </button>
@@ -501,8 +416,8 @@ const MainPage = () => {
     const [exportDate, setExportDate] = useState(today);
 
     const handleExport = async () => {
-      try {
-        const response = await axios.get(`https://backend.yourcat.tech/api/attendance/${line}/${exportDate}`, {
+             try {
+         const response = await axios.get(API_ENDPOINTS.ATTENDANCE(line, exportDate), {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
           responseType: 'blob',
         });
@@ -616,7 +531,7 @@ const MainPage = () => {
               <div className="flex flex-col md:flex-row items-start gap-6">
                 <div className="w-full md:w-1/3">
                   <img 
-                    src={`https://backend.yourcat.tech${selectedOperator.imagePath}`}
+                    src={selectedOperator.imagePath}
                     alt={`${selectedOperator.name}'s photo`}
                     className="w-full rounded-lg shadow-lg"
                     onError={(e) => {
@@ -642,10 +557,6 @@ const MainPage = () => {
                       <div className="bg-gray-50 p-3 rounded">
                         <p className="text-sm text-gray-600">Station</p>
                         <p className="font-semibold">{selectedOperator.station}</p>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-sm text-gray-600">LED Index</p>
-                        <p className="font-semibold">{selectedOperator.ledIndex}</p>
                       </div>
                     </div>
 
@@ -694,7 +605,7 @@ const MainPage = () => {
                   >
                     <div className="w-32 h-32 mb-3 relative">
                       <img 
-                        src={`https://backend.yourcat.tech${op.imagePath}`}
+                        src={op.imagePath}
                         alt={`${op.name}'s photo`}
                         className="w-full h-full object-cover rounded-full"
                         onError={(e) => {
@@ -784,9 +695,17 @@ const MainPage = () => {
       </div>
       <div>
         <h2 className="text-xl font-semibold mb-2">Today's Attendance</h2>
+        {/* Attendance Summary Stats */}
+        <div className="flex gap-4 mb-2">
+          <span className="px-3 py-1 rounded bg-gray-200">Total: {operators.length}</span>
+          <span className="px-3 py-1 rounded bg-green-200 text-green-800">Present: {attendance.filter(a => a.status === 'Present').length}</span>
+          <span className="px-3 py-1 rounded bg-red-200 text-red-800">Absent: {attendance.filter(a => a.status === 'Absent').length}</span>
+          <span className="px-3 py-1 rounded bg-gray-300 text-gray-800">Leftover: {operators.length - attendance.length}</span>
+        </div>
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
+              <th className="py-2 px-4 border">Photo</th>
               <th className="py-2 px-4 border">Operator Name</th>
               <th className="py-2 px-4 border">Employee ID</th>
               <th className="py-2 px-4 border">Station</th>
@@ -797,17 +716,32 @@ const MainPage = () => {
           <tbody>
             {attendance.length === 0 ? (
               <tr>
-                <td colSpan="5" className="py-2 px-4 text-center">No attendance records found for today.</td>
+                <td colSpan="6" className="py-2 px-4 text-center">No attendance records found for today.</td>
               </tr>
             ) : (
-              attendance.map((record) => {
-                console.log('Attendance record in table:', record);
-                const { date, time } = displayDateTime(record.timestamp);
+              // Color code: Present = green, Absent = red, Leftover = gray
+              operators.map((op) => {
+                const record = attendance.find(a => a.employeeId === op.employeeId);
+                let rowClass = '';
+                let date = '', time = '';
+                if (record) {
+                  if (record.status === 'Present') {
+                    rowClass = 'bg-green-100';
+                  } else if (record.status === 'Absent') {
+                    rowClass = 'bg-red-100';
+                  }
+                  const dt = displayDateTime(record.timestamp);
+                  date = dt.date;
+                  time = dt.time;
+                } else {
+                  rowClass = 'bg-gray-100';
+                }
                 return (
-                  <tr key={record._id} className="border-t">
-                    <td className="py-2 px-4">{record.operatorName}</td>
-                    <td className="py-2 px-4">{record.employeeId}</td>
-                    <td className="py-2 px-4">{record.station}</td>
+                  <tr key={op._id} className={`border-t ${rowClass}`}>
+                    <td className="py-2 px-4"><img src={op.imagePath} alt={op.name} className="w-10 h-10 object-cover rounded-full border" /></td>
+                    <td className="py-2 px-4">{op.name}</td>
+                    <td className="py-2 px-4">{op.employeeId}</td>
+                    <td className="py-2 px-4">{op.station}</td>
                     <td className="py-2 px-4">{date}</td>
                     <td className="py-2 px-4">{time}</td>
                   </tr>

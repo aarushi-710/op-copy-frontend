@@ -2,7 +2,9 @@ import axios from 'axios';
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import logo from '../assets/Padget.jpeg';
+import { API_ENDPOINTS } from '../config/api';
+// Logo is now served from Supabase
+const logo = 'https://wosukygmjmflvukdtgga.supabase.co/storage/v1/object/public/operatot-photos/Padget.jpeg';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -15,7 +17,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('https://op-copy-backend.onrender.com/api/auth/login', {
+      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, {
         username,
         password,
         line,

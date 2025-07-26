@@ -50,24 +50,6 @@ class MQTTService {
     }
   }
 
-  publishLedStatus(line, ledIndex, status) {
-    if (!this.connected) {
-      console.error('MQTT not connected');
-      return;
-    }
-
-    const topic = `attendance/${line}/led`;
-    const message = JSON.stringify({ ledIndex, status });
-
-    this.client.publish(topic, message, { qos: 1 }, (err) => {
-      if (err) {
-        console.error('MQTT publish error:', err);
-      } else {
-        console.log(`Published LED status: ${message}`);
-      }
-    });
-  }
-
   disconnect() {
     if (this.client) {
       this.client.end();
