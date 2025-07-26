@@ -275,21 +275,17 @@ const MainPage = () => {
   };
 
   const MarkAttendanceModal = ({ onClose }) => {
-    const [selectedStation, setSelectedStation] = useState('');
     const [labeledDescriptors, setLabeledDescriptors] = useState([]);
     const [isRecognizing, setIsRecognizing] = useState(false);
-    const stations = [...new Set(operators.map((op) => op.station))];
 
+    // Start webcam
     const startVideo = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
         if (webcamRef.current) {
           webcamRef.current.video.srcObject = stream;
           webcamRef.current.video.onloadedmetadata = () => {
-            console.log('Video metadata loaded:', {
-              width: webcamRef.current.video.videoWidth,
-              height: webcamRef.current.video.videoHeight,
-            });
+            // Video loaded
           };
         }
       } catch (err) {
@@ -299,132 +295,37 @@ const MainPage = () => {
       }
     };
 
+    // Load all operator face descriptors once models are loaded
     useEffect(() => {
-      if (!selectedStation || !modelsLoaded) return;
-
+      if (!modelsLoaded) return;
       const loadDescriptors = async () => {
-        const stationOperators = operators.filter((op) => op.station === selectedStation);
-        if (stationOperators.length === 0) {
+        if (!operators.length) {
           setLabeledDescriptors([]);
           return;
         }
-
         const descriptors = await Promise.all(
-          stationOperators.map(async (op) => {
+          operators.map(async (op) => {
             try {
-              // Use the frontend's base URL for deployed images
               const baseUrl = process.env.REACT_APP_FRONTEND_URL || '';
               const imageUrl = `${baseUrl}${op.imagePath}`;
-              console.log(`Fetching image for operator ${op.name}: ${imageUrl}`);
               const img = await faceapi.fetchImage(imageUrl);
               const detection = await faceapi
                 .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
-              if (!detection) {
-                console.warn(`No face detected in image for operator ${op.name}`);
-                return null;
-              }
+              if (!detection) return null;
               return new faceapi.LabeledFaceDescriptors(op._id, [detection.descriptor]);
             } catch (error) {
-              console.error(`Error loading image for operator ${op.name}:`, error);
               return null;
             }
           })
         );
-        const validDescriptors = descriptors.filter((d) => d !== null);
-        setLabeledDescriptors(validDescriptors);
-        if (validDescriptors.length === 0) {
-          alert('No valid face descriptors found for operators in this station.');
-        }
+        setLabeledDescriptors(descriptors.filter(Boolean));
       };
-
       loadDescriptors();
-    }, [selectedStation, modelsLoaded]);
+    }, [modelsLoaded, operators]);
 
-    const recognizeFace = async () => {
-      if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
-        alert('Webcam is not ready. Please ensure camera access is granted.');
-        setIsRecognizing(false);
-        return;
-      }
-      if (labeledDescriptors.length === 0) {
-        alert('No operators with valid face data for this station.');
-        setIsRecognizing(false);
-        return;
-      }
-
-      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
-      console.log('Face matcher initialized with', labeledDescriptors.length, 'known faces');
-
-      const startTime = Date.now();
-      try {
-        const detection = await faceapi
-          .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-        const currentTimestamp = new Date().toISOString();
-
-        if (!detection) {
-          alert('No face detected in webcam feed.');
-          await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
-            { station: selectedStation, timestamp: currentTimestamp },
-            { headers }
-          );
-          setIsRecognizing(false);
-          return;
-        }
-
-        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-        const endTime = Date.now();
-        console.log(`Recognition time: ${(endTime - startTime) / 1000} seconds`);
-
-        if (bestMatch.label !== 'unknown' && bestMatch.distance < 0.6) {
-          const matchedOperator = operators.find((op) => op._id === bestMatch.label);
-          if (matchedOperator) {
-            const attendanceRecord = {
-              operatorId: matchedOperator._id,
-              date: today,
-              timestamp: currentTimestamp,
-            };
-            console.log('Sending attendance record:', attendanceRecord);
-            try {
-              const response = await axios.post(
-                `https://backend.yourcat.tech/api/attendance/${line}`,
-                attendanceRecord,
-                { headers }
-              );
-              setAttendance([...attendance, response.data]);
-              alert(`Attendance marked successfully for ${matchedOperator.name} (distance: ${bestMatch.distance.toFixed(3)})`);
-            } catch (error) {
-              console.error('Error marking attendance:', error);
-              alert('Error marking attendance. Please try again.');
-            }
-          } else {
-            alert('Matched operator not found.');
-          }
-        } else {
-          alert('No suitable operator found for the detected face (no match >= 60%).');
-          await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
-            { station: selectedStation, timestamp: currentTimestamp },
-            { headers }
-          );
-        }
-      } catch (error) {
-        console.error('Error during face recognition:', error);
-        alert('An error occurred during face recognition.');
-      } finally {
-        setIsRecognizing(false);
-        if (webcamRef.current && webcamRef.current.video.srcObject) {
-          webcamRef.current.video.srcObject.getTracks().forEach((track) => track.stop());
-        }
-      }
-    };
-
+    // Start webcam on modal open
     useEffect(() => {
       if (showMarkModal) {
         startVideo();
@@ -436,45 +337,77 @@ const MainPage = () => {
       };
     }, [showMarkModal]);
 
-    const handleMarkAttendance = async () => {
-      setIsRecognizing(true);
+    // Recognize face and mark attendance for matched operator
+    const recognizeFace = async () => {
+      if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
+        alert('Webcam is not ready. Please ensure camera access is granted.');
+        setIsRecognizing(false);
+        return;
+      }
+      if (labeledDescriptors.length === 0) {
+        alert('No operators with valid face data.');
+        setIsRecognizing(false);
+        return;
+      }
+      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
       try {
-        await recognizeFace();
-
-        // After successful attendance marking
-        mqttService.publishAttendanceChange({
-          operatorName: formattedAttendance.operatorName,
-          employeeId: formattedAttendance.employeeId,
-          station: formattedAttendance.station,
-          status: formattedAttendance.status,
-          timestamp: formattedAttendance.timestamp
-        });
-
+        const detection = await faceapi
+          .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const currentTimestamp = new Date().toISOString();
+        if (!detection) {
+          alert('No face detected in webcam feed.');
+          setIsRecognizing(false);
+          return;
+        }
+        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+        if (bestMatch.label !== 'unknown' && bestMatch.distance < 0.6) {
+          const matchedOperator = operators.find((op) => op._id === bestMatch.label);
+          if (matchedOperator) {
+            const attendanceRecord = {
+              operatorId: matchedOperator._id,
+              date: today,
+              timestamp: currentTimestamp,
+            };
+            try {
+              const response = await axios.post(
+                `https://backend.yourcat.tech/api/attendance/${line}`,
+                attendanceRecord,
+                { headers }
+              );
+              setAttendance([...attendance, response.data]);
+              alert(`Attendance marked successfully for ${matchedOperator.name} (Station: ${matchedOperator.station})`);
+            } catch (error) {
+              alert('Error marking attendance. Please try again.');
+            }
+          } else {
+            alert('Matched operator not found.');
+          }
+        } else {
+          alert('No suitable operator found for the detected face (no match >= 60%).');
+        }
       } catch (error) {
-        console.error('Error marking attendance:', error);
-        alert('Error marking attendance');
+        alert('An error occurred during face recognition.');
       } finally {
         setIsRecognizing(false);
+        if (webcamRef.current && webcamRef.current.video.srcObject) {
+          webcamRef.current.video.srcObject.getTracks().forEach((track) => track.stop());
+        }
       }
+    };
+
+    const handleMarkAttendance = async () => {
+      setIsRecognizing(true);
+      await recognizeFace();
     };
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
         <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-xl font-bold mb-4">Mark Attendance</h2>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Select Station:</label>
-            <select
-              value={selectedStation}
-              onChange={(e) => setSelectedStation(e.target.value)}
-              className="border p-2 rounded w-full"
-            >
-              <option value="">-- Select Station --</option>
-              {stations.map((station, idx) => (
-                <option key={idx} value={station}>{station}</option>
-              ))}
-            </select>
-          </div>
           <div className="mb-4">
             <Webcam
               audio={false}
@@ -486,8 +419,8 @@ const MainPage = () => {
           </div>
           <button
             onClick={handleMarkAttendance}
-            disabled={isRecognizing || !selectedStation}
-            className={`bg-blue-500 text-white px-4 py-2 rounded mb-4 ${isRecognizing || !selectedStation ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isRecognizing}
+            className={`bg-blue-500 text-white px-4 py-2 rounded mb-4 ${isRecognizing ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isRecognizing ? 'Recognizing...' : 'Mark Attendance'}
           </button>
