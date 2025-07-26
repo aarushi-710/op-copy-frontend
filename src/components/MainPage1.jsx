@@ -5,90 +5,95 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
-import { mqttService } from '../services/mqttService';
+// import { mqttService } from '../services/mqttService';
 
 // Global error handling for uncaught promise errors
 window.addEventListener('unhandledrejection', function(event) {
   console.error('Unhandled promise rejection:', event.reason);
 });
+  // AttendanceModal must be defined outside of the return statement
+  // ...existing code...
 
-const MainPage = () => {
-  const { line } = useParams();
-  const [operators, setOperators] = useState([]);
-  const [attendance, setAttendance] = useState([]);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [showMarkModal, setShowMarkModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [error, setError] = useState('');
-  const webcamRef = useRef(null);
-
-  useEffect(() => {
-    const loadModelsAndData = async () => {
-      try {
-        await faceapi.tf.setBackend('webgl');
-        await faceapi.tf.ready();
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-          faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
-        ]);
-        setModelsLoaded(true);
-
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-
-        const [operatorsRes, attendanceRes] = await Promise.all([
-          axios.get(`https://backend.yourcat.tech/api/operators/${line}`, { headers }),
-          axios.get(`https://backend.yourcat.tech/api/attendance/${line}/${new Date().toISOString().split('T')[0]}`, { headers }),
-        ]);
-
-        setOperators(operatorsRes.data || []);
-        setAttendance(Array.isArray(attendanceRes.data) ? attendanceRes.data : []);
-      } catch (error) {
-        console.error('Error loading models or data:', error);
-        if (error.response) {
-          setError(`Server error: ${error.response.status} - ${error.response.data.message || 'Unknown error'}`);
-        } else if (error.request) {
-          setError('Cannot connect to the server. Please check if it’s running.');
-        } else {
-          setError('An unexpected error occurred while loading data.');
-        }
-      }
-    };
-    loadModelsAndData();
-  }, [line]);
-
-  const today = new Date().toISOString().split('T')[0];
-
-  const UpdateOperatorsModal = ({ onClose }) => {
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [formData, setFormData] = useState({ name: '', employeeId: '', station: '', ledIndex: '', file: null });
-    const [preview, setPreview] = useState(null);
-
-    // Handle file selection and preview
-    const handleFileChange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        setFormData({ ...formData, file });
-        // Generate a preview URL for the image
-        const previewUrl = URL.createObjectURL(file);
-        setPreview(previewUrl);
-      }
-    }; 
-
-    const handleAddOperator = async (e) => {
-      e.preventDefault();
-      if (!formData.file || !formData.name || !formData.employeeId || !formData.station || formData.ledIndex === '') {
-        alert('Please fill all fields, including LED Index, and upload an image.');
-        return;
-      }
-
-      const ledIndex = parseInt(formData.ledIndex, 10);
-      if (isNaN(ledIndex) || ledIndex < 0 || ledIndex > 20) {
-        alert('LED Index must be a number between 0 and 20.');
-        return;
-      }
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Attendance System - Line {line}</h1>
+      {error && <div className="text-red-500 mb-4">{error}</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <button 
+          onClick={() => setShowViewModal(true)} 
+          className="bg-purple-500 text-white px-4 py-2 rounded"
+        >
+          View Operators
+        </button>
+        <button 
+          onClick={() => setShowUpdateModal(true)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Update Operators
+        </button>
+        <button 
+          onClick={() => setShowAttendanceModal(true)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Show Attendance
+        </button>
+        <button 
+          onClick={() => setShowExportModal(true)} 
+          className="bg-yellow-500 text-white px-4 py-2 rounded"
+        >
+          Export Attendance
+        </button>
+      </div>
+      <div>
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setShowAttendanceModal(true)}
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Show Attendance
+          </button>
+        </div>
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              <th className="py-2 px-4 border">Critical Stations</th>
+              <th className="py-2 px-4 border">Experienced OP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from(new Set(operators.map(op => op.station))).length === 0 ? (
+              <tr>
+                <td colSpan={2} className="py-2 px-4 text-center">No stations found.</td>
+              </tr>
+            ) : (
+              Array.from(new Set(operators.map(op => op.station))).map(station => {
+                // Find all operators for this station
+                const opsForStation = operators.filter(o => o.station === station);
+                // Check if any operator for this station has attendance marked today
+                const present = opsForStation.some(op => {
+                  const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
+                  return todaysAttendance.some(a => a.station === station);
+                });
+                return (
+                  <tr key={station} className="border-t">
+                    <td className="py-2 px-4 font-semibold">{station}</td>
+                    <td className={`py-2 px-4 border font-semibold ${present ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {present ? 'Present' : 'Absent'}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      {showUpdateModal && <UpdateOperatorsModal onClose={() => setShowUpdateModal(false)} />}
+      {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} />}
+      {showExportModal && <ExportAttendanceModal onClose={() => setShowExportModal(false)} />}
+      {showViewModal && <ViewOperatorsModal onClose={() => setShowViewModal(false)} />}
+      {showAttendanceModal && <AttendanceModal onClose={() => setShowAttendanceModal(false)} />}
+    </div>
+  );
 
       try {
         // Create a unique filename
@@ -142,7 +147,7 @@ const MainPage = () => {
         const errorMessage = error.response?.data?.message || error.message;
         alert(`Error adding operator: ${errorMessage}`);
       }
-    };
+    // ...existing code...
 
     const handleDeleteOperator = async (id) => {
       try {
@@ -271,24 +276,20 @@ const MainPage = () => {
         </div>
       </div>
     );
-  };
+  // ...existing code...
 
   const MarkAttendanceModal = ({ onClose }) => {
-    const [selectedStation, setSelectedStation] = useState('');
     const [labeledDescriptors, setLabeledDescriptors] = useState([]);
     const [isRecognizing, setIsRecognizing] = useState(false);
-    const stations = [...new Set(operators.map((op) => op.station))];
 
+    // Start webcam
     const startVideo = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
         if (webcamRef.current) {
           webcamRef.current.video.srcObject = stream;
           webcamRef.current.video.onloadedmetadata = () => {
-            console.log('Video metadata loaded:', {
-              width: webcamRef.current.video.videoWidth,
-              height: webcamRef.current.video.videoHeight,
-            });
+            // Video loaded
           };
         }
       } catch (err) {
@@ -298,132 +299,37 @@ const MainPage = () => {
       }
     };
 
+    // Load all operator face descriptors once models are loaded
     useEffect(() => {
-      if (!selectedStation || !modelsLoaded) return;
-
+      if (!modelsLoaded) return;
       const loadDescriptors = async () => {
-        const stationOperators = operators.filter((op) => op.station === selectedStation);
-        if (stationOperators.length === 0) {
+        if (!operators.length) {
           setLabeledDescriptors([]);
           return;
         }
-
         const descriptors = await Promise.all(
-          stationOperators.map(async (op) => {
+          operators.map(async (op) => {
             try {
-              // Use the frontend's base URL for deployed images
               const baseUrl = process.env.REACT_APP_FRONTEND_URL || '';
               const imageUrl = `${baseUrl}${op.imagePath}`;
-              console.log(`Fetching image for operator ${op.name}: ${imageUrl}`);
               const img = await faceapi.fetchImage(imageUrl);
               const detection = await faceapi
                 .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
-              if (!detection) {
-                console.warn(`No face detected in image for operator ${op.name}`);
-                return null;
-              }
+              if (!detection) return null;
               return new faceapi.LabeledFaceDescriptors(op._id, [detection.descriptor]);
             } catch (error) {
-              console.error(`Error loading image for operator ${op.name}:`, error);
               return null;
             }
           })
         );
-        const validDescriptors = descriptors.filter((d) => d !== null);
-        setLabeledDescriptors(validDescriptors);
-        if (validDescriptors.length === 0) {
-          alert('No valid face descriptors found for operators in this station.');
-        }
+        setLabeledDescriptors(descriptors.filter(Boolean));
       };
-
       loadDescriptors();
-    }, [selectedStation, modelsLoaded]);
+    }, [modelsLoaded, operators]);
 
-    const recognizeFace = async () => {
-      if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
-        alert('Webcam is not ready. Please ensure camera access is granted.');
-        setIsRecognizing(false);
-        return;
-      }
-      if (labeledDescriptors.length === 0) {
-        alert('No operators with valid face data for this station.');
-        setIsRecognizing(false);
-        return;
-      }
-
-      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
-      console.log('Face matcher initialized with', labeledDescriptors.length, 'known faces');
-
-      const startTime = Date.now();
-      try {
-        const detection = await faceapi
-          .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-        const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-        const currentTimestamp = new Date().toISOString();
-
-        if (!detection) {
-          alert('No face detected in webcam feed.');
-          await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
-            { station: selectedStation, timestamp: currentTimestamp },
-            { headers }
-          );
-          setIsRecognizing(false);
-          return;
-        }
-
-        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-        const endTime = Date.now();
-        console.log(`Recognition time: ${(endTime - startTime) / 1000} seconds`);
-
-        if (bestMatch.label !== 'unknown' && bestMatch.distance < 0.6) {
-          const matchedOperator = operators.find((op) => op._id === bestMatch.label);
-          if (matchedOperator) {
-            const attendanceRecord = {
-              operatorId: matchedOperator._id,
-              date: today,
-              timestamp: currentTimestamp,
-            };
-            console.log('Sending attendance record:', attendanceRecord);
-            try {
-              const response = await axios.post(
-                `https://backend.yourcat.tech/api/attendance/${line}`,
-                attendanceRecord,
-                { headers }
-              );
-              setAttendance([...attendance, response.data]);
-              alert(`Attendance marked successfully for ${matchedOperator.name} (distance: ${bestMatch.distance.toFixed(3)})`);
-            } catch (error) {
-              console.error('Error marking attendance:', error);
-              alert('Error marking attendance. Please try again.');
-            }
-          } else {
-            alert('Matched operator not found.');
-          }
-        } else {
-          alert('No suitable operator found for the detected face (no match >= 60%).');
-          await axios.post(
-            `https://backend.yourcat.tech/api/attendance/${line}/fail`,
-            { station: selectedStation, timestamp: currentTimestamp },
-            { headers }
-          );
-        }
-      } catch (error) {
-        console.error('Error during face recognition:', error);
-        alert('An error occurred during face recognition.');
-      } finally {
-        setIsRecognizing(false);
-        if (webcamRef.current && webcamRef.current.video.srcObject) {
-          webcamRef.current.video.srcObject.getTracks().forEach((track) => track.stop());
-        }
-      }
-    };
-
+    // Start webcam on modal open
     useEffect(() => {
       if (showMarkModal) {
         startVideo();
@@ -435,45 +341,77 @@ const MainPage = () => {
       };
     }, [showMarkModal]);
 
-    const handleMarkAttendance = async () => {
-      setIsRecognizing(true);
+    // Recognize face and mark attendance for matched operator
+    const recognizeFace = async () => {
+      if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
+        alert('Webcam is not ready. Please ensure camera access is granted.');
+        setIsRecognizing(false);
+        return;
+      }
+      if (labeledDescriptors.length === 0) {
+        alert('No operators with valid face data.');
+        setIsRecognizing(false);
+        return;
+      }
+      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors);
       try {
-        await recognizeFace();
-
-        // After successful attendance marking
-        mqttService.publishAttendanceChange({
-          operatorName: formattedAttendance.operatorName,
-          employeeId: formattedAttendance.employeeId,
-          station: formattedAttendance.station,
-          status: formattedAttendance.status,
-          timestamp: formattedAttendance.timestamp
-        });
-
+        const detection = await faceapi
+          .detectSingleFace(webcamRef.current.video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        const currentTimestamp = new Date().toISOString();
+        if (!detection) {
+          alert('No face detected in webcam feed.');
+          setIsRecognizing(false);
+          return;
+        }
+        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+        if (bestMatch.label !== 'unknown' && bestMatch.distance < 0.6) {
+          const matchedOperator = operators.find((op) => op._id === bestMatch.label);
+          if (matchedOperator) {
+            const attendanceRecord = {
+              operatorId: matchedOperator._id,
+              date: today,
+              timestamp: currentTimestamp,
+            };
+            try {
+              const response = await axios.post(
+                `https://backend.yourcat.tech/api/attendance/${line}`,
+                attendanceRecord,
+                { headers }
+              );
+              setAttendance([...attendance, response.data]);
+              alert(`Attendance marked successfully for ${matchedOperator.name} (Station: ${matchedOperator.station})`);
+            } catch (error) {
+              alert('Error marking attendance. Please try again.');
+            }
+          } else {
+            alert('Matched operator not found.');
+          }
+        } else {
+          alert('No suitable operator found for the detected face (no match >= 60%).');
+        }
       } catch (error) {
-        console.error('Error marking attendance:', error);
-        alert('Error marking attendance');
+        alert('An error occurred during face recognition.');
       } finally {
         setIsRecognizing(false);
+        if (webcamRef.current && webcamRef.current.video.srcObject) {
+          webcamRef.current.video.srcObject.getTracks().forEach((track) => track.stop());
+        }
       }
+    };
+
+    const handleMarkAttendance = async () => {
+      setIsRecognizing(true);
+      await recognizeFace();
     };
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
         <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-xl font-bold mb-4">Mark Attendance</h2>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Select Station:</label>
-            <select
-              value={selectedStation}
-              onChange={(e) => setSelectedStation(e.target.value)}
-              className="border p-2 rounded w-full"
-            >
-              <option value="">-- Select Station --</option>
-              {stations.map((station, idx) => (
-                <option key={idx} value={station}>{station}</option>
-              ))}
-            </select>
-          </div>
           <div className="mb-4">
             <Webcam
               audio={false}
@@ -485,8 +423,8 @@ const MainPage = () => {
           </div>
           <button
             onClick={handleMarkAttendance}
-            disabled={isRecognizing || !selectedStation}
-            className={`bg-blue-500 text-white px-4 py-2 rounded mb-4 ${isRecognizing || !selectedStation ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isRecognizing}
+            className={`bg-blue-500 text-white px-4 py-2 rounded mb-4 ${isRecognizing ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isRecognizing ? 'Recognizing...' : 'Mark Attendance'}
           </button>
@@ -542,6 +480,184 @@ const MainPage = () => {
     );
   };
 
+  const ViewOperatorsModal = ({ onClose }) => {
+    const [selectedOperator, setSelectedOperator] = useState(null);
+    const [showErrors, setShowErrors] = useState(false);
+
+    // Define station-specific errors
+    const stationErrors = {
+      'Receiver installation': [
+        "RAUD^Receiver_FR_200.000Hz",
+        "RAUD^Receiver_RB_200.000Hz",
+        "RAUD^Receiver_THD_200.000Hz",
+        "RAUD^HSMIC2REC_LoopBack_Sampling"
+      ],
+      'Middle Frame Installation (1)': [
+        "ANT^NR5G_N78_636666_DBM_RSSI",
+        "GSM1800_698_DBM_Power_29",
+        "WCDMA_B8_2788_DBM_Power_24",
+        "ANT^LTE_B1_18300_DBM_RSSI",
+        "ANT^WCDMA_B8_2788",
+        "ANT^WCDMA_B5_4183_DBM_",
+        "ANT^NR5G_N3_349500",
+        "ANT^GSM1800_698_DBM_Power",
+        "ANT^GPS_FreqDrift_1"
+      ],
+      'Middle Frame Installation (2)': [
+        "ANT^NR5G_N78_636666_DBM_RSSI",
+        "GSM1800_698_DBM_Power_29",
+        "WCDMA_B8_2788_DBM_Power_24",
+        "ANT^LTE_B1_18300_DBM_RSSI",
+        "ANT^WCDMA_B8_2788",
+        "ANT^WCDMA_B5_4183_DBM_",
+        "ANT^NR5G_N3_349500",
+        "ANT^GSM1800_698_DBM_Power",
+        "ANT^GPS_FreqDrift_1"
+      ],
+      'Front camera installation': [
+        "CAM1^Front8MBlemish_MuraCount",
+        "CAM1^CatFront8MSFR37"
+      ],
+      'Rear camera installation': [
+        "CAM1^CatRearWideSFRFar50Result",
+        "CAM1^RearMainBlemish50_MuraCount",
+        "CAM1^RearMainBlemish50_BlemishCount"
+      ]
+    };
+
+    const handleOperatorClick = (operator) => {
+      setSelectedOperator(operator);
+      setShowErrors(false);
+    };
+
+    const handleBack = () => {
+      setSelectedOperator(null);
+      setShowErrors(false);
+    };
+
+    const toggleErrorsView = () => {
+      setShowErrors(!showErrors);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
+        <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          {selectedOperator ? (
+            <div>
+              <button 
+                onClick={handleBack}
+                className="mb-4 text-blue-500 hover:underline flex items-center"
+              >
+                ← Back to list
+              </button>
+              <div className="flex flex-col md:flex-row items-start gap-6">
+                <div className="w-full md:w-1/3">
+                  <img 
+                    src={`https://backend.yourcat.tech${selectedOperator.imagePath}`}
+                    alt={`${selectedOperator.name}'s photo`}
+                    className="w-full rounded-lg shadow-lg"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                    }}
+                  />
+                  <button
+                    onClick={toggleErrorsView}
+                    className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full"
+                  >
+                    {showErrors ? 'Hide Errors' : 'View Errors'}
+                  </button>
+                </div>
+                <div className="w-full md:w-2/3">
+                  <h2 className="text-2xl font-bold mb-4">{selectedOperator.name}</h2>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">Employee ID</p>
+                        <p className="font-semibold">{selectedOperator.employeeId}</p>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">Station</p>
+                        <p className="font-semibold">{selectedOperator.station}</p>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm text-gray-600">LED Index</p>
+                        <p className="font-semibold">{selectedOperator.ledIndex}</p>
+                      </div>
+                    </div>
+
+                    {showErrors && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-3">Possible Errors</h3>
+                        <table className="min-w-full border">
+                          <thead>
+                            <tr>
+                              <th className="py-2 px-4 border bg-gray-50">Error</th>
+                              <th className="py-2 px-4 border bg-gray-50">Count</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(stationErrors[selectedOperator.station] || []).map((error, index) => (
+                              <tr key={index}>
+                                <td className="py-2 px-4 border">{error}</td>
+                                <td className="py-2 px-4 border text-center">0</td>
+                              </tr>
+                            ))}
+                            {!stationErrors[selectedOperator.station] && (
+                              <tr>
+                                <td colSpan="2" className="py-2 px-4 border text-center text-gray-500">
+                                  No specific errors defined for this station
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // List view of all operators
+            <>
+              <h2 className="text-xl font-bold mb-4">Operators List</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {operators.map((op) => (
+                  <div 
+                    key={op._id} 
+                    className="border rounded-lg p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => handleOperatorClick(op)}
+                  >
+                    <div className="w-32 h-32 mb-3 relative">
+                      <img 
+                        src={`https://backend.yourcat.tech${op.imagePath}`}
+                        alt={`${op.name}'s photo`}
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IiNFNUU3RUIiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzZCNzI4MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNnB4Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                        }}
+                      />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-1 hover:text-blue-500">{op.name}</h3>
+                    <p className="text-gray-600">{op.station}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          <button 
+            onClick={onClose} 
+            className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const displayDateTime = (timestamp) => {
     if (!timestamp) {
       console.warn('Timestamp is missing or undefined:', timestamp);
@@ -568,23 +684,38 @@ const MainPage = () => {
     };
   };
 
-  useEffect(() => {
-    mqttService.connect();
-    return () => mqttService.disconnect();
-  }, []);
+  // useEffect(() => {
+  //   mqttService.connect();
+  //   return () => mqttService.disconnect();
+  // }, []);
 
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Attendance System - Line {line}</h1>
       {error && <div className="text-red-500 mb-4">{error}</div>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <button onClick={() => setShowUpdateModal(true)} className="bg-blue-500 text-white px-4 py-2 rounded">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <button 
+          onClick={() => setShowViewModal(true)} 
+          className="bg-purple-500 text-white px-4 py-2 rounded"
+        >
+          View Operators
+        </button>
+        <button 
+          onClick={() => setShowUpdateModal(true)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
           Update Operators
         </button>
-        <button onClick={() => setShowAttendanceModal(true)} className="bg-green-500 text-white px-4 py-2 rounded">
-          Show Attendance
+        <button 
+          onClick={() => setShowMarkModal(true)} 
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
+          Mark Attendance
         </button>
-        <button onClick={() => setShowExportModal(true)} className="bg-yellow-500 text-white px-4 py-2 rounded">
+        <button 
+          onClick={() => setShowExportModal(true)} 
+          className="bg-yellow-500 text-white px-4 py-2 rounded"
+        >
           Export Attendance
         </button>
       </div>
@@ -597,31 +728,34 @@ const MainPage = () => {
             Show Attendance
           </button>
         </div>
-        <h2 className="text-xl font-semibold mb-2">Today's Attendance</h2>
+  // ...existing code...
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="py-2 px-4 border">Operator Name</th>
-              <th className="py-2 px-4 border">Employee ID</th>
-              <th className="py-2 px-4 border">Station</th>
-              <th className="py-2 px-4 border">Status</th>
+              <th className="py-2 px-4 border">Critical Stations</th>
+              <th className="py-2 px-4 border">Experienced OP</th>
             </tr>
           </thead>
           <tbody>
-            {operators.length === 0 ? (
+            {Array.from(new Set(operators.map(op => op.station))).length === 0 ? (
               <tr>
-                <td colSpan="4" className="py-2 px-4 text-center">No operators found.</td>
+                <td colSpan={2} className="py-2 px-4 text-center">No stations found.</td>
               </tr>
             ) : (
-              operators.map((op) => {
-                // Check if this operator has attendance marked today
-                const present = attendance.some(a => (a.operatorId === op._id || a.operatorName === op.name) && a.date === today);
+              Array.from(new Set(operators.map(op => op.station))).map(station => {
+                // Find all operators for this station
+                const opsForStation = operators.filter(o => o.station === station);
+                // Check if any operator for this station has attendance marked today
+                const present = opsForStation.some(op => {
+                  const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
+                  return todaysAttendance.some(a => a.station === station);
+                });
                 return (
-                  <tr key={op._id} className="border-t">
-                    <td className="py-2 px-4">{op.name}</td>
-                    <td className="py-2 px-4">{op.employeeId}</td>
-                    <td className="py-2 px-4">{op.station}</td>
-                    <td className={`py-2 px-4 font-semibold ${present ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{present ? 'Present' : 'Absent'}</td>
+                  <tr key={station} className="border-t">
+                    <td className="py-2 px-4 font-semibold">{station}</td>
+                    <td className={`py-2 px-4 border font-semibold ${present ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {present ? 'Present' : 'Absent'}
+                    </td>
                   </tr>
                 );
               })
@@ -632,55 +766,10 @@ const MainPage = () => {
       {showUpdateModal && <UpdateOperatorsModal onClose={() => setShowUpdateModal(false)} />}
       {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} />}
       {showExportModal && <ExportAttendanceModal onClose={() => setShowExportModal(false)} />}
-      {showAttendanceModal && <AttendanceModal attendance={attendance} onClose={() => setShowAttendanceModal(false)} />}
-// Modal to show complete attendance
-const AttendanceModal = ({ attendance, onClose }) => {
-  // Sort by timestamp ascending
-  const sorted = [...attendance].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h2 className="text-xl font-bold mb-4">All Attendance Records</h2>
-        <table className="min-w-full bg-white border mb-4">
-          <thead>
-            <tr>
-              <th className="py-2 px-4 border">Operator Name</th>
-              <th className="py-2 px-4 border">Employee ID</th>
-              <th className="py-2 px-4 border">Station</th>
-              <th className="py-2 px-4 border">Date</th>
-              <th className="py-2 px-4 border">Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="py-2 px-4 text-center">No attendance records found.</td>
-              </tr>
-            ) : (
-              sorted.map((record, idx) => {
-                const dateObj = new Date(record.timestamp);
-                const date = dateObj.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
-                const time = dateObj.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
-                return (
-                  <tr key={record._id || idx} className="border-t">
-                    <td className="py-2 px-4">{record.operatorName}</td>
-                    <td className="py-2 px-4">{record.employeeId}</td>
-                    <td className="py-2 px-4">{record.station}</td>
-                    <td className="py-2 px-4">{date}</td>
-                    <td className="py-2 px-4">{time}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-        <button onClick={onClose} className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Close</button>
-      </div>
+      {showViewModal && <ViewOperatorsModal onClose={() => setShowViewModal(false)} />}
+      {showAttendanceModal && <AttendanceModal onClose={() => setShowAttendanceModal(false)} />}
     </div>
   );
-};
-    </div>
-  );
-};
+// ...existing code...
 
 export default MainPage;

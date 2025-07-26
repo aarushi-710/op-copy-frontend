@@ -5,108 +5,184 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
-// import { mqttService } from '../services/mqttService';
 
 // Global error handling for uncaught promise errors
 window.addEventListener('unhandledrejection', function(event) {
   console.error('Unhandled promise rejection:', event.reason);
 });
-  // AttendanceModal must be defined outside of the return statement
-  // ...existing code...
 
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Attendance System - Line {line}</h1>
-      {error && <div className="text-red-500 mb-4">{error}</div>}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <button 
-          onClick={() => setShowViewModal(true)} 
-          className="bg-purple-500 text-white px-4 py-2 rounded"
-        >
-          View Operators
-        </button>
-        <button 
-          onClick={() => setShowUpdateModal(true)} 
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Update Operators
-        </button>
-        <button 
-          onClick={() => setShowAttendanceModal(true)} 
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Show Attendance
-        </button>
-        <button 
-          onClick={() => setShowExportModal(true)} 
-          className="bg-yellow-500 text-white px-4 py-2 rounded"
-        >
-          Export Attendance
-        </button>
-      </div>
-      <div>
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={() => setShowAttendanceModal(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Show Attendance
+const MainPage = () => {
+  const { line } = useParams();
+  const [operators, setOperators] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [error, setError] = useState('');
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showMarkModal, setShowMarkModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  
+  const webcamRef = useRef(null);
+  const today = new Date().toISOString().split('T')[0];
+
+  // Load face-api models and fetch data on component mount
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+          faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+        ]);
+        setModelsLoaded(true);
+      } catch (error) {
+        console.error('Error loading face-api models:', error);
+        setError('Failed to load face recognition models.');
+      }
+    };
+    loadModels();
+    fetchOperators();
+    fetchAttendance();
+  }, [line]);
+
+  const fetchOperators = async () => {
+    try {
+      const res = await axios.get(`https://backend.yourcat.tech/api/operators/${line}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      setOperators(res.data);
+    } catch (error) {
+      console.error('Error fetching operators:', error);
+      setError('Failed to fetch operators.');
+    }
+  };
+
+  const fetchAttendance = async () => {
+    try {
+      const res = await axios.get(`https://backend.yourcat.tech/api/attendance/${line}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      setAttendance(res.data);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      setError('Failed to fetch attendance.');
+    }
+  };
+
+  // AttendanceModal component
+  const AttendanceModal = ({ onClose }) => {
+    const [selectedDate, setSelectedDate] = useState(today);
+    const [filteredAttendance, setFilteredAttendance] = useState([]);
+
+    useEffect(() => {
+      const filtered = attendance.filter(a => a.date === selectedDate);
+      setFilteredAttendance(filtered);
+    }, [selectedDate, attendance]);
+
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
+        <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-xl font-bold mb-4">Attendance Records</h2>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Select Date:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="border p-2 rounded"
+            />
+          </div>
+
+          <table className="min-w-full bg-white border">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 border">Name</th>
+                <th className="py-2 px-4 border">Employee ID</th>
+                <th className="py-2 px-4 border">Station</th>
+                <th className="py-2 px-4 border">Date</th>
+                <th className="py-2 px-4 border">Time</th>
+                <th className="py-2 px-4 border">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAttendance.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-2 px-4 text-center">No attendance records found for this date.</td>
+                </tr>
+              ) : (
+                filteredAttendance.map((record) => {
+                  const operator = operators.find(op => op._id === record.operatorId);
+                  const { date, time } = displayDateTime(record.timestamp);
+                  
+                  return (
+                    <tr key={`${record.operatorId}-${record.timestamp}`} className="border-t">
+                      <td className="py-2 px-4">{operator?.name || 'Unknown'}</td>
+                      <td className="py-2 px-4">{operator?.employeeId || 'N/A'}</td>
+                      <td className="py-2 px-4">{operator?.station || 'N/A'}</td>
+                      <td className="py-2 px-4">{date}</td>
+                      <td className="py-2 px-4">{time}</td>
+                      <td className="py-2 px-4">
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">
+                          Present
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+          
+          <button onClick={onClose} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Close
           </button>
         </div>
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr>
-              <th className="py-2 px-4 border">Critical Stations</th>
-              <th className="py-2 px-4 border">Experienced OP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from(new Set(operators.map(op => op.station))).length === 0 ? (
-              <tr>
-                <td colSpan={2} className="py-2 px-4 text-center">No stations found.</td>
-              </tr>
-            ) : (
-              Array.from(new Set(operators.map(op => op.station))).map(station => {
-                // Find all operators for this station
-                const opsForStation = operators.filter(o => o.station === station);
-                // Check if any operator for this station has attendance marked today
-                const present = opsForStation.some(op => {
-                  const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
-                  return todaysAttendance.some(a => a.station === station);
-                });
-                return (
-                  <tr key={station} className="border-t">
-                    <td className="py-2 px-4 font-semibold">{station}</td>
-                    <td className={`py-2 px-4 border font-semibold ${present ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {present ? 'Present' : 'Absent'}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
       </div>
-      {showUpdateModal && <UpdateOperatorsModal onClose={() => setShowUpdateModal(false)} />}
-      {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} />}
-      {showExportModal && <ExportAttendanceModal onClose={() => setShowExportModal(false)} />}
-      {showViewModal && <ViewOperatorsModal onClose={() => setShowViewModal(false)} />}
-      {showAttendanceModal && <AttendanceModal onClose={() => setShowAttendanceModal(false)} />}
-    </div>
-  );
+    );
+  };
+
+  const UpdateOperatorsModal = ({ onClose }) => {
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [formData, setFormData] = useState({
+      name: '',
+      employeeId: '',
+      station: '',
+      ledIndex: '',
+      file: null
+    });
+    const [preview, setPreview] = useState(null);
+
+    const handleFileChange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        setFormData({ ...formData, file });
+        const reader = new FileReader();
+        reader.onloadend = () => setPreview(reader.result);
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const handleAddOperator = async (e) => {
+      e.preventDefault();
+      if (!formData.name || !formData.employeeId || !formData.station || !formData.ledIndex || !formData.file) {
+        alert('Please fill all fields and select an image.');
+        return;
+      }
+
+      const ledIndex = parseInt(formData.ledIndex);
+      if (operators.some(op => op.ledIndex === ledIndex)) {
+        alert('LED index already assigned to another operator.');
+        return;
+      }
 
       try {
-        // Create a unique filename
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         const fileExtension = formData.file.name.split('.').pop();
         const fileName = `operator-${uniqueSuffix}.${fileExtension}`;
-        const imagePath = `/images/${fileName}`; // Path relative to public folder
+        const imagePath = `/images/${fileName}`;
 
-        // Note: In a browser, you cannot directly save to public/images.
-        // For development, manually place the file in frontend/public/images or use a dev server.
-        // For deployment, images must be committed to GitHub and served by Vercel.
-
-        // Optionally, upload to a local dev server (if set up)
         let finalImagePath = imagePath;
         if (process.env.NODE_ENV !== 'production') {
           const formDataToSend = new FormData();
@@ -117,7 +193,6 @@ window.addEventListener('unhandledrejection', function(event) {
           finalImagePath = uploadRes.data.imagePath;
         }
 
-        // Send operator data to backend
         const operatorData = {
           name: formData.name,
           employeeId: formData.employeeId,
@@ -147,7 +222,7 @@ window.addEventListener('unhandledrejection', function(event) {
         const errorMessage = error.response?.data?.message || error.message;
         alert(`Error adding operator: ${errorMessage}`);
       }
-    // ...existing code...
+    };
 
     const handleDeleteOperator = async (id) => {
       try {
@@ -161,7 +236,6 @@ window.addEventListener('unhandledrejection', function(event) {
       }
     };
 
-    // Helper to get available LED indexes (0-16)
     const getAvailableLedIndexes = () => {
       const assigned = operators.map(op => op.ledIndex);
       const allIndexes = Array.from({ length: 21 }, (_, i) => i);
@@ -276,13 +350,12 @@ window.addEventListener('unhandledrejection', function(event) {
         </div>
       </div>
     );
-  // ...existing code...
+  };
 
   const MarkAttendanceModal = ({ onClose }) => {
     const [labeledDescriptors, setLabeledDescriptors] = useState([]);
     const [isRecognizing, setIsRecognizing] = useState(false);
 
-    // Start webcam
     const startVideo = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
@@ -299,7 +372,6 @@ window.addEventListener('unhandledrejection', function(event) {
       }
     };
 
-    // Load all operator face descriptors once models are loaded
     useEffect(() => {
       if (!modelsLoaded) return;
       const loadDescriptors = async () => {
@@ -329,7 +401,6 @@ window.addEventListener('unhandledrejection', function(event) {
       loadDescriptors();
     }, [modelsLoaded, operators]);
 
-    // Start webcam on modal open
     useEffect(() => {
       if (showMarkModal) {
         startVideo();
@@ -341,7 +412,6 @@ window.addEventListener('unhandledrejection', function(event) {
       };
     }, [showMarkModal]);
 
-    // Recognize face and mark attendance for matched operator
     const recognizeFace = async () => {
       if (!webcamRef.current || webcamRef.current.video.readyState !== 4) {
         alert('Webcam is not ready. Please ensure camera access is granted.');
@@ -484,7 +554,6 @@ window.addEventListener('unhandledrejection', function(event) {
     const [selectedOperator, setSelectedOperator] = useState(null);
     const [showErrors, setShowErrors] = useState(false);
 
-    // Define station-specific errors
     const stationErrors = {
       'Receiver installation': [
         "RAUD^Receiver_FR_200.000Hz",
@@ -619,7 +688,6 @@ window.addEventListener('unhandledrejection', function(event) {
               </div>
             </div>
           ) : (
-            // List view of all operators
             <>
               <h2 className="text-xl font-bold mb-4">Operators List</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -684,51 +752,48 @@ window.addEventListener('unhandledrejection', function(event) {
     };
   };
 
-  // useEffect(() => {
-  //   mqttService.connect();
-  //   return () => mqttService.disconnect();
-  // }, []);
-
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Attendance System - Line {line}</h1>
       {error && <div className="text-red-500 mb-4">{error}</div>}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <button 
           onClick={() => setShowViewModal(true)} 
-          className="bg-purple-500 text-white px-4 py-2 rounded"
+          className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
         >
           View Operators
         </button>
         <button 
           onClick={() => setShowUpdateModal(true)} 
-          className="bg-blue-500 text-white px-4 py-2 rounded"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
           Update Operators
         </button>
         <button 
           onClick={() => setShowMarkModal(true)} 
-          className="bg-green-500 text-white px-4 py-2 rounded"
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
         >
           Mark Attendance
         </button>
         <button 
           onClick={() => setShowExportModal(true)} 
-          className="bg-yellow-500 text-white px-4 py-2 rounded"
+          className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
         >
           Export Attendance
         </button>
       </div>
+
       <div>
         <div className="flex justify-end mb-4">
           <button
             onClick={() => setShowAttendanceModal(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Show Attendance
           </button>
         </div>
-  // ...existing code...
+        
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
@@ -748,7 +813,7 @@ window.addEventListener('unhandledrejection', function(event) {
                 // Check if any operator for this station has attendance marked today
                 const present = opsForStation.some(op => {
                   const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
-                  return todaysAttendance.some(a => a.station === station);
+                  return todaysAttendance.length > 0;
                 });
                 return (
                   <tr key={station} className="border-t">
@@ -763,6 +828,8 @@ window.addEventListener('unhandledrejection', function(event) {
           </tbody>
         </table>
       </div>
+
+      {/* Modals */}
       {showUpdateModal && <UpdateOperatorsModal onClose={() => setShowUpdateModal(false)} />}
       {showMarkModal && <MarkAttendanceModal onClose={() => setShowMarkModal(false)} />}
       {showExportModal && <ExportAttendanceModal onClose={() => setShowExportModal(false)} />}
@@ -770,6 +837,6 @@ window.addEventListener('unhandledrejection', function(event) {
       {showAttendanceModal && <AttendanceModal onClose={() => setShowAttendanceModal(false)} />}
     </div>
   );
-// ...existing code...
+};
 
 export default MainPage;
