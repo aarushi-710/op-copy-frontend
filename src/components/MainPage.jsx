@@ -794,46 +794,38 @@ const MainPage = () => {
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="py-2 px-4 border">Experienced OP</th>
-              {Array.from(new Set(operators.map(op => op.station))).length > 0 && (
-                <th className="py-2 px-4 border text-center" colSpan={Array.from(new Set(operators.map(op => op.station))).length}>
-                  Critical Stations
-                </th>
-              )}
+              <th className="py-2 px-4 border text-center" colSpan={1 + operators.length}>Critical Stations</th>
             </tr>
             <tr>
-              <th className="py-2 px-4 border"></th>
-              {Array.from(new Set(operators.map(op => op.station))).map(station => (
-                <th key={station} className="py-2 px-4 border">{station}</th>
+              <th className="py-2 px-4 border">Station</th>
+              {operators.map(op => (
+                <th key={op._id} className="py-2 px-4 border">{op.name}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {operators.length === 0 ? (
+            {Array.from(new Set(operators.map(op => op.station))).length === 0 ? (
               <tr>
-                <td colSpan={1 + Array.from(new Set(operators.map(op => op.station))).length} className="py-2 px-4 text-center">No operators found.</td>
+                <td colSpan={1 + operators.length} className="py-2 px-4 text-center">No stations found.</td>
               </tr>
             ) : (
-              operators.map((op) => {
-                const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
-                const stations = Array.from(new Set(operators.map(o => o.station)));
-                return (
-                  <tr key={op._id} className="border-t">
-                    <td className="py-2 px-4 font-semibold">{op.name}</td>
-                    {stations.map(station => {
-                      const present = todaysAttendance.some(a => a.station === station);
-                      return (
-                        <td
-                          key={station}
-                          className={`py-2 px-4 border ${present ? 'bg-green-100 text-green-700 font-bold' : 'bg-red-100 text-red-700 font-bold'}`}
-                        >
-                          {present ? 'Present' : 'Absent'}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })
+              Array.from(new Set(operators.map(op => op.station))).map(station => (
+                <tr key={station} className="border-t">
+                  <td className="py-2 px-4 font-semibold">{station}</td>
+                  {operators.map(op => {
+                    const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
+                    const present = todaysAttendance.some(a => a.station === station);
+                    return (
+                      <td
+                        key={op._id}
+                        className={`py-2 px-4 border ${present ? 'bg-green-100 text-green-700 font-bold' : 'bg-red-100 text-red-700 font-bold'}`}
+                      >
+                        {present ? 'Present' : 'Absent'}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
             )}
           </tbody>
         </table>
