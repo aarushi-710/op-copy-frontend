@@ -794,38 +794,34 @@ const MainPage = () => {
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="py-2 px-4 border text-center" colSpan={1 + operators.length}>Critical Stations</th>
-            </tr>
-            <tr>
-              <th className="py-2 px-4 border">Station</th>
-              {operators.map(op => (
-                <th key={op._id} className="py-2 px-4 border">{op.name}</th>
-              ))}
+              <th className="py-2 px-4 border">Critical Stations</th>
+              <th className="py-2 px-4 border">Experienced OP</th>
             </tr>
           </thead>
           <tbody>
             {Array.from(new Set(operators.map(op => op.station))).length === 0 ? (
               <tr>
-                <td colSpan={1 + operators.length} className="py-2 px-4 text-center">No stations found.</td>
+                <td colSpan={2} className="py-2 px-4 text-center">No stations found.</td>
               </tr>
             ) : (
-              Array.from(new Set(operators.map(op => op.station))).map(station => (
-                <tr key={station} className="border-t">
-                  <td className="py-2 px-4 font-semibold">{station}</td>
-                  {operators.map(op => {
-                    const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
-                    const present = todaysAttendance.some(a => a.station === station);
-                    return (
-                      <td
-                        key={op._id}
-                        className={`py-2 px-4 border ${present ? 'bg-green-100 text-green-700 font-bold' : 'bg-red-100 text-red-700 font-bold'}`}
-                      >
-                        {present ? 'Present' : 'Absent'}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
+              Array.from(new Set(operators.map(op => op.station))).map(station => {
+                const op = operators.find(o => o.station === station);
+                let present = false;
+                let opName = '';
+                if (op) {
+                  opName = op.name;
+                  const todaysAttendance = attendance.filter(a => a.operatorId === op._id && a.date === today);
+                  present = todaysAttendance.some(a => a.station === station);
+                }
+                return (
+                  <tr key={station} className="border-t">
+                    <td className="py-2 px-4 font-semibold">{station}</td>
+                    <td className={`py-2 px-4 border font-semibold ${present ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {opName || 'N/A'}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
