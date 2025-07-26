@@ -5,55 +5,14 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
-import { mqttService } from '../services/mqttService';
+// import { mqttService } from '../services/mqttService';
 
 // Global error handling for uncaught promise errors
 window.addEventListener('unhandledrejection', function(event) {
   console.error('Unhandled promise rejection:', event.reason);
 });
   // AttendanceModal must be defined outside of the return statement
-  const AttendanceModal = ({ onClose }) => {
-    const todaysAttendance = attendance
-      .filter(a => a.date === today)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
-        <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-          <h2 className="text-xl font-bold mb-4">Attendance Records ({today})</h2>
-          <table className="min-w-full bg-white border mb-4">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 border">Operator Name</th>
-                <th className="py-2 px-4 border">Employee ID</th>
-                <th className="py-2 px-4 border">Station</th>
-                <th className="py-2 px-4 border">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todaysAttendance.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-2 px-4 text-center">No attendance records found for today.</td>
-                </tr>
-              ) : (
-                todaysAttendance.map((a, idx) => {
-                  const op = operators.find(o => o._id === a.operatorId);
-                  return (
-                    <tr key={a._id || idx}>
-                      <td className="py-2 px-4 border">{op ? op.name : a.operatorId}</td>
-                      <td className="py-2 px-4 border">{op ? op.employeeId : '-'}</td>
-                      <td className="py-2 px-4 border">{a.station || (op ? op.station : '-')}</td>
-                      <td className="py-2 px-4 border">{a.timestamp ? new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }) : '-'}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-          <button onClick={onClose} className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Close</button>
-        </div>
-      </div>
-    );
-  };
+  // ...existing code...
 
   return (
     <div className="p-4">
@@ -188,7 +147,7 @@ window.addEventListener('unhandledrejection', function(event) {
         const errorMessage = error.response?.data?.message || error.message;
         alert(`Error adding operator: ${errorMessage}`);
       }
-    };
+    // ...existing code...
 
     const handleDeleteOperator = async (id) => {
       try {
@@ -317,7 +276,7 @@ window.addEventListener('unhandledrejection', function(event) {
         </div>
       </div>
     );
-  };
+  // ...existing code...
 
   const MarkAttendanceModal = ({ onClose }) => {
     const [labeledDescriptors, setLabeledDescriptors] = useState([]);
@@ -725,10 +684,10 @@ window.addEventListener('unhandledrejection', function(event) {
     };
   };
 
-  useEffect(() => {
-    mqttService.connect();
-    return () => mqttService.disconnect();
-  }, []);
+  // useEffect(() => {
+  //   mqttService.connect();
+  //   return () => mqttService.disconnect();
+  // }, []);
 
   return (
     <div className="p-4">
@@ -769,50 +728,7 @@ window.addEventListener('unhandledrejection', function(event) {
             Show Attendance
           </button>
         </div>
-  // Modal to show complete attendance for today
-  const AttendanceModal = ({ onClose }) => {
-    // Get all attendance for today, sorted by time
-    const todaysAttendance = attendance
-      .filter(a => a.date === today)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center" onClick={onClose}>
-        <div className="bg-white p-6 rounded shadow-lg w-3/4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-          <h2 className="text-xl font-bold mb-4">Attendance Records ({today})</h2>
-          <table className="min-w-full bg-white border mb-4">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 border">Operator Name</th>
-                <th className="py-2 px-4 border">Employee ID</th>
-                <th className="py-2 px-4 border">Station</th>
-                <th className="py-2 px-4 border">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todaysAttendance.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-2 px-4 text-center">No attendance records found for today.</td>
-                </tr>
-              ) : (
-                todaysAttendance.map((a, idx) => {
-                  const op = operators.find(o => o._id === a.operatorId);
-                  return (
-                    <tr key={a._id || idx}>
-                      <td className="py-2 px-4 border">{op ? op.name : a.operatorId}</td>
-                      <td className="py-2 px-4 border">{op ? op.employeeId : '-'}</td>
-                      <td className="py-2 px-4 border">{a.station || (op ? op.station : '-')}</td>
-                      <td className="py-2 px-4 border">{a.timestamp ? new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }) : '-'}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-          <button onClick={onClose} className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Close</button>
-        </div>
-      </div>
-    );
-  };
+  // ...existing code...
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
@@ -854,6 +770,6 @@ window.addEventListener('unhandledrejection', function(event) {
       {showAttendanceModal && <AttendanceModal onClose={() => setShowAttendanceModal(false)} />}
     </div>
   );
-};
+// ...existing code...
 
 export default MainPage;
