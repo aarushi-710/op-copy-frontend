@@ -32,10 +32,10 @@ window.addEventListener('unhandledrejection', function(event) {
           Update Operators
         </button>
         <button 
-          onClick={() => setShowMarkModal(true)} 
-          className="bg-green-500 text-white px-4 py-2 rounded"
+          onClick={() => setShowAttendanceModal(true)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded"
         >
-          Mark Attendance
+          Show Attendance
         </button>
         <button 
           onClick={() => setShowExportModal(true)} 
