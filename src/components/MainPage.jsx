@@ -13,6 +13,9 @@ window.addEventListener('unhandledrejection', function(event) {
 
 const MainPage = () => {
   const { line } = useParams();
+  // Move lineNumber definition to the top and always define it
+  const lineNumber = line ? line.replace(/^line/i, '') : '';
+
   const [operators, setOperators] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [error, setError] = useState('');
@@ -22,7 +25,7 @@ const MainPage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  
+
   const webcamRef = useRef(null);
   const today = new Date().toISOString().split('T')[0];
 
@@ -41,14 +44,16 @@ const MainPage = () => {
         setError('Failed to load face recognition models.');
       }
     };
-    loadModels();
-    fetchOperators();
-    fetchAttendance();
-  }, [line]);
+    if (line) {
+      loadModels();
+      fetchOperators();
+      fetchAttendance();
+    }
+  }, [line, lineNumber]);
 
   const fetchOperators = async () => {
     try {
-      const res = await axios.get(`https://backend.yourcat.tech/api/operators/${line}`, {
+      const res = await axios.get(`https://backend.yourcat.tech/api/operators/${lineNumber}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       setOperators(res.data);
@@ -758,7 +763,7 @@ const MainPage = () => {
     };
   };
 
-  const lineNumber = line.replace(/^line/i, ''); // removes 'line' prefix if present
+  // lineNumber is already defined at the top
 
   return (
     <div className="p-4">
